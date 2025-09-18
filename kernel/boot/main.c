@@ -13,6 +13,7 @@ int main()
         printf("\n");
         printf("xv6 kernel is booting\n");
         printf("\n");
+        started = 1;
     }
     if(mycpuid()==1)
     {
@@ -28,6 +29,15 @@ int main()
         print_init();
         printf("\n");
         printf("cpu2 is booting\n");
+        printf("\n");
+    }
+    
+    if(mycpuid()==3)
+    {
+        uart_init();
+        print_init();
+        printf("\n");
+        printf("cpu3 is booting\n");
         printf("\n");
     }
     while (1);    
