@@ -18,13 +18,12 @@ void start()
     //关闭分页
     w_satp(0);
 
-    // // delegate all interrupts and exceptions to supervisor mode.
+    //中断陷入Supervisor模式
     w_medeleg(0xffff);
     w_mideleg(0xffff);
     w_sie(r_sie() | SIE_SEIE | SIE_STIE);
 
-    // // configure Physical Memory Protection to give supervisor mode
-    // // access to all of physical memory.
+    // 允许Supervisor访问物理内存
     w_pmpaddr0(0x3fffffffffffffull);
     w_pmpcfg0(0xf);
 
