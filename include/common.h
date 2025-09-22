@@ -12,6 +12,7 @@ typedef unsigned char          uint8;
 typedef unsigned short         uint16;
 typedef unsigned int           uint32;
 typedef unsigned long long     uint64;
+typedef unsigned long          uintptr_t;
 
 typedef unsigned long long         reg; 
 typedef enum {false = 0, true = 1} bool;
@@ -21,5 +22,6 @@ typedef enum {false = 0, true = 1} bool;
 #endif
 
 #define NCPU 2
+#define PAGESIZE 4096
 
 #endif

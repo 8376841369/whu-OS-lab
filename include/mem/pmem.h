@@ -2,6 +2,8 @@
 #define __PMEM_H__
 
 #include "common.h"
+#include "lib/string.h"
+
 
 // 来自kernel.ld
 extern char KERNEL_DATA[];
