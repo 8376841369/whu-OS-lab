@@ -131,7 +131,6 @@ void printf(const char *fmt, ...)
 
 void panic(const char *s)
 {
-  panicked = 1;
   printf("panic: ");
   printf("%s\n", s);
   panicked = 1; // freeze uart output from other CPUs

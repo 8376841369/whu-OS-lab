@@ -6,24 +6,13 @@
 #define PGROUNDUP(x)  (((x) + PAGESIZE - 1) & ~(PAGESIZE - 1))
 #define PGROUNDDOWN(x) ((x) & ~(PAGESIZE - 1))
 
-// 物理页节点
-typedef struct page_node { 
-struct page_node* next;
-} page_node_t; 
-
-
-// 许多物理页构成一个可分配的区域
-typedef struct alloc_region { 
-    uint64 begin; // 起始物理地址
-    uint64 end; // 终止物理地址
-    spinlock_t lk; // 自旋锁(保护下面两个变量)
-    uint32 allocable; // 可分配页面数
-    page_node_t list_head; // 可分配链的链头节点
-} alloc_region_t;
 
 
 // 内核和用户可分配的物理页分开
-static alloc_region_t kernel_region, user_region;
+alloc_region_t kernel_region, user_region;
+
+
+
 
 
 
@@ -46,8 +35,7 @@ static void region_build_free_list(alloc_region_t* r, uint64 lo, uint64 hi)
         r->allocable++;
     }
 }
-
-static  bool page_in_region(const alloc_region_t* r, uint64 pa) {
+bool page_in_region(const alloc_region_t* r, uint64 pa) {
     if (pa % PAGESIZE) return false;//物理地址必须是页对齐的
     return (pa >= r->begin) && (pa + PAGESIZE <= r->end);
 }
@@ -112,7 +100,6 @@ void  pmem_free(uint64 page, bool in_kernel)
     if (!page_in_region(r, page)) {
         // 也可 panic("pmem_free: bad page/region");
         printf("Warning: pmem_free: bad page/region %p\n", (void*)page);
-         printf("2\n");
         return;
     }
 

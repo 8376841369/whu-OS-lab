@@ -4,6 +4,7 @@
 #include "dev/uart.h"
 #include "lib/lock.h"
 #include "mem/pmem.h"
+#include "mem/vmem.h"
 #include "lib/string.h"
 // volatile static int started = 0;
 // volatile static int sum = 0;
@@ -99,18 +100,15 @@ int main()
         for(int i = 0; i < 512; i++) {
             mem[i] = pmem_alloc(true);
             memset(mem[i], 1, PGSIZE);
-            printf("mem = %p, data = %d,i=%d\n", mem[i], mem[i][0],i);
+            printf("mem = %p, data = %d\n", mem[i], mem[i][0]);
         }
         printf("cpu %d alloc over\n", cpuid);
         over_1 = 1;
-
+        
         while(over_1 == 0 || over_2 == 0);
         
         for(int i = 0; i < 512; i++)
-        {
             pmem_free((uint64)mem[i], true);
-            printf("free mem%d\n",i);
-        }
         printf("cpu %d free over\n", cpuid);
 
     } else {
@@ -122,21 +120,17 @@ int main()
         for(int i = 512; i < 1024; i++) {
             mem[i] = pmem_alloc(true);
             memset(mem[i], 1, PGSIZE);
-            printf("mem = %p, data = %d,i=%d\n", mem[i], mem[i][0],i);
+            printf("mem = %p, data = %d\n", mem[i], mem[i][0]);
         }
         printf("cpu %d alloc over\n", cpuid);
         over_2 = 1;
-       
+
         while(over_1 == 0 || over_2 == 0);
 
         for(int i = 512; i < 1024; i++)
-        {
             pmem_free((uint64)mem[i], true);
-            printf("free mem%d\n",i);
-        }
         printf("cpu %d free over\n", cpuid);        
  
     }
     while (1);    
 }
-
