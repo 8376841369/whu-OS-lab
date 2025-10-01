@@ -1,5 +1,6 @@
 #include "mem/pmem.h"
 #include "lib/lock.h"
+#include "lib/print.h"
 
 
 #define PGROUNDUP(x)  (((x) + PAGESIZE - 1) & ~(PAGESIZE - 1))
@@ -38,7 +39,6 @@ static void region_build_free_list(alloc_region_t* r, uint64 lo, uint64 hi)
     for(; p + PAGESIZE <= e; p += PAGESIZE)
     {
        page_node_t* node = (page_node_t*)(uintptr_t)p; // 直接映射假设???有待商议
-        memset((void*)node, 0x01, PAGESIZE);              // 空闲毒化（可选）
         //头插法
         node->next = r->list_head.next;
         r->list_head.next = node;
@@ -100,7 +100,7 @@ void* pmem_alloc(bool in_kernel)
     spinlock_release(&r->lk);
 
     if (!node) return NULL;
-    memset((void*)node, 0x05, PAGESIZE);       // 已分配毒化（可选）
+
     return (void*)node;                      // 直接映射：VA==PA
 }
 
@@ -111,13 +111,15 @@ void  pmem_free(uint64 page, bool in_kernel)
     //确保归还到正确的池，且页对齐/在区间内
     if (!page_in_region(r, page)) {
         // 也可 panic("pmem_free: bad page/region");
+        printf("Warning: pmem_free: bad page/region %p\n", (void*)page);
+         printf("2\n");
         return;
     }
 
-    memset((void*)(uintptr_t) page, 0x01, PAGESIZE);   // 空闲毒化（可选）
     page_node_t* node = (page_node_t*)(uintptr_t)page;
 
     spinlock_acquire(&r->lk);
+    // 头插法归还
     node->next = r->list_head.next;
     r->list_head.next = node;
     r->allocable++;
