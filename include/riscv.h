@@ -73,6 +73,7 @@ static inline void w_sip(uint64 x)
 #define SIE_STIE (1L << 5) // timer
 #define SIE_SSIE (1L << 1) // software
 
+
 static inline uint64 r_sie()
 {
   uint64 x;
@@ -89,6 +90,7 @@ static inline void w_sie(uint64 x)
 #define MIE_MEIE (1L << 11) // external
 #define MIE_MTIE (1L << 7)  // timer
 #define MIE_MSIE (1L << 3)  // software
+#define MIE_STIE (1L << 5)  // supervisor timer
 
 static inline uint64 r_mie()
 {
@@ -297,6 +299,53 @@ w_pmpaddr0(uint64 x)
   asm volatile("csrw pmpaddr0, %0" : : "r" (x));
 }
 
+static inline uint64
+r_menvcfg()
+{
+  uint64 x;
+  // asm volatile("csrr %0, menvcfg" : "=r" (x) );
+  asm volatile("csrr %0, 0x30a" : "=r" (x) );
+  return x;
+}
+
+static inline void 
+w_menvcfg(uint64 x)
+{
+  // asm volatile("csrw menvcfg, %0" : : "r" (x));
+  asm volatile("csrw 0x30a, %0" : : "r" (x));
+}
+
+// Machine-mode Counter-Enable
+static inline void 
+w_mcounteren(uint64 x)
+{
+  asm volatile("csrw mcounteren, %0" : : "r" (x));
+}
+
+static inline uint64
+r_mcounteren()
+{
+  uint64 x;
+  asm volatile("csrr %0, mcounteren" : "=r" (x) );
+  return x;
+}
+
+// Supervisor Timer Comparison Register
+static inline uint64
+r_stimecmp()
+{
+  uint64 x;
+  // asm volatile("csrr %0, stimecmp" : "=r" (x) );
+  asm volatile("csrr %0, 0x14d" : "=r" (x) );
+  return x;
+}
+
+static inline void 
+w_stimecmp(uint64 x)
+{
+  // asm volatile("csrw stimecmp, %0" : : "r" (x));
+  asm volatile("csrw 0x14d, %0" : : "r" (x));
+}
 // 内存管理相关
 
 #define PGSIZE 4096 // bytes per page

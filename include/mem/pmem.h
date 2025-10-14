@@ -19,11 +19,11 @@ typedef struct page_node {
 
 // 可分配区域
 typedef struct alloc_region {
-    uint64 begin;
-    uint64 end;
-    spinlock_t lk;
-    uint32  allocable;
-    page_node_t list_head;
+    uint64 begin;//起始的物理地址
+    uint64 end;//结束的物理地址
+    spinlock_t lk;//自旋锁
+    uint32  allocable;//可以分配的自旋锁页数
+    page_node_t list_head;//头节点
 } alloc_region_t;
 
 // ★ 只声明（extern），不定义

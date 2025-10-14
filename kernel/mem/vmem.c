@@ -3,6 +3,10 @@
 #include "lib/print.h"
 #include "riscv.h"
 
+//目前的问题：如果写在同意PA，释放时会出现UAF
+//现在不允许做修改权限的事情，因为不会重置TLB
+//默认VA==PA
+
 #define REG_BASE   0x10000000UL               
 #define REG_SIZE   0x10000000UL             
 #define MEM_BASE   0x80000000UL                
@@ -96,11 +100,11 @@ void vm_mappages(pgtbl_t pgtbl, uint64 va, uint64 pa, uint64 len, int perm)//映
             panic("vm_mappages: vm_getpte failed");
             return;
         }
-        if((*pte & PTE_V) != 0)//已经被映射了
-        {
-            panic("vm_mappages: remap");
-            return;
-        }
+        // if((*pte & PTE_V) != 0)//已经被映射了
+        // {
+        //     panic("vm_mappages: remap");
+        //     return;
+        // }
         // 如果有写权限，则必须有读权限
         if (perm & PTE_W) perm |= PTE_R;
         
