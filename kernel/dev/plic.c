@@ -8,7 +8,7 @@
 void plic_init()
 {
     // 设置UART中断优先级
-    *(uint32*)(PLIC_PRIORITY(UART_IRQ)) = 1;
+    *(volatile uint32*)PLIC_PRIORITY(UART_IRQ) = 1;
 }
 
 // PLIC核心初始化

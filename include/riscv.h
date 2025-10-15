@@ -303,8 +303,8 @@ static inline uint64
 r_menvcfg()
 {
   uint64 x;
-  // asm volatile("csrr %0, menvcfg" : "=r" (x) );
-  asm volatile("csrr %0, 0x30a" : "=r" (x) );
+   asm volatile("csrr %0, menvcfg" : "=r" (x) );
+  //asm volatile("csrr %0, 0x30a" : "=r" (x) );
   return x;
 }
 
@@ -315,20 +315,7 @@ w_menvcfg(uint64 x)
   asm volatile("csrw 0x30a, %0" : : "r" (x));
 }
 
-// Machine-mode Counter-Enable
-static inline void 
-w_mcounteren(uint64 x)
-{
-  asm volatile("csrw mcounteren, %0" : : "r" (x));
-}
 
-static inline uint64
-r_mcounteren()
-{
-  uint64 x;
-  asm volatile("csrr %0, mcounteren" : "=r" (x) );
-  return x;
-}
 
 // Supervisor Timer Comparison Register
 static inline uint64

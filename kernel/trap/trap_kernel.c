@@ -3,7 +3,8 @@
 #include "dev/uart.h"
 #include "dev/plic.h"
 #include "trap/trap.h"
-#include "proc/cpu.h"
+#include "proc/proc.h"
+#include "dev/plic.h"
 #include "memlayout.h"
 #include "riscv.h"
 
@@ -54,13 +55,16 @@ extern void kernel_vector();
 // 初始化trap中全局共享的东西
 void trap_kernel_init()
 {
-
+    w_stvec((uint64)kernel_vector);
+    // plic_init();
+    w_sip(0);
 }
 
 // 各个核心trap初始化
 void trap_kernel_inithart()
 {
-
+    // plic_inithart();
+    timer_create();
 }
 
 // 外设中断处理 (基于PLIC)
@@ -72,7 +76,13 @@ void external_interrupt_handler()
 // 时钟中断处理 (基于CLINT)
 void timer_interrupt_handler()
 {
-
+    if(mycpuid()==0)
+    {
+        timer_update();
+        printf("time %d\n", timer_get_ticks());
+    }
+    // 设置下一个时钟中断时间
+    w_stimecmp(r_time() + INTERVAL);
 }
 
 // 在kernel_vector()里面调用
@@ -89,6 +99,19 @@ void trap_kernel_handler()
     assert(intr_get() == 0, "trap_kernel_handler: interreput enabled");
 
     int trap_id = scause & 0xf; 
-
+    int is_interrupt = (scause >> 63) & 1;
     // 中断异常处理核心逻辑
+    if(is_interrupt)
+    {
+        switch (trap_id)
+        {
+        case 5:
+            timer_interrupt_handler();    // 里面会续期: stimecmp = time + INTERVAL
+            return;
+            
+        
+        default:
+            break;
+        }
+    }
 }

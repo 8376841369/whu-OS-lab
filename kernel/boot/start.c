@@ -1,4 +1,5 @@
 #include "riscv.h"
+#include "dev/timer.h"
 
 void main();
 
@@ -22,6 +23,7 @@ void start()
     w_medeleg(0xffff);
     w_mideleg(0xffff);
     w_sie(r_sie() | SIE_SEIE | SIE_STIE);
+    timer_init();
 
     // 允许Supervisor访问物理内存
     w_pmpaddr0(0x3fffffffffffffull);

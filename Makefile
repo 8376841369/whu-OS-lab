@@ -12,7 +12,8 @@ $(KERN):
 
 # QEMU相关配置
 QEMU     =  qemu-system-riscv64
-QEMUOPTS =  -machine virt -bios none -kernel $(KERNEL_ELF) 
+#QEMUOPTS =  -machine virt -bios none -kernel $(KERNEL_ELF) 
+QEMUOPTS =  -machine virt -cpu rv64,sstc=true -bios none -kernel $(KERNEL_ELF)
 QEMUOPTS += -m 128M -smp $(CPUNUM) -nographic
 
 # 调试
