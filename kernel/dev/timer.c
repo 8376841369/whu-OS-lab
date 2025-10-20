@@ -17,7 +17,6 @@ extern void timer_vector();
 // called in start.c
 void timer_init()
 {
-    w_mie(r_mie() | MIE_STIE); // 允许时钟中断 MIE寄存器是M态的中断使能寄存器
     w_menvcfg(r_menvcfg() | (1L<<63)); // 允许S模式下的写入stimecmp CSR
     w_mcounteren(r_mcounteren() | 2); //控制S 态能否读一组计数器 CSR 即time
     w_stimecmp(r_time() + INTERVAL);
@@ -39,9 +38,7 @@ void timer_create()
     }
     // 2) 打开 S 态中断：
     //    - sstatus.SIE：S 态全局中断开关
-    //    - sie.STIE   ：S 态时钟中断开关
     w_sstatus(r_sstatus()| SSTATUS_SIE);//允许S态中断
-    w_sie(r_sie()| SIE_STIE);//允许S态时钟中断
     // 设置下一个时钟中断时间
     w_stimecmp(r_time() + INTERVAL);
 }

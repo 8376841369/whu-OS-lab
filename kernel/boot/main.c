@@ -17,13 +17,15 @@ int main(void)
 
     if (id == 0) {
         // 基础初始化
+        trap_kernel_init();
         print_init();
-        pmem_init();
-        kvm_init();
-        kvm_inithart();
+        uart_init();
+        //pmem_init();
+        //kvm_init();
+        //kvm_inithart();
 
         // 安装 S-mode trap 入口（全局一次）
-        trap_kernel_init();
+       
 
         // 本核的中断/PLIC/定时器（每核）
         trap_kernel_inithart();   // 内部应打开 SIE_STIE + SSTATUS_SIE

@@ -56,21 +56,33 @@ extern void kernel_vector();
 void trap_kernel_init()
 {
     w_stvec((uint64)kernel_vector);
-    // plic_init();
+    plic_init();
     w_sip(0);
 }
 
 // 各个核心trap初始化
 void trap_kernel_inithart()
 {
-    // plic_inithart();
+    plic_inithart();
     timer_create();
 }
 
 // 外设中断处理 (基于PLIC)
 void external_interrupt_handler()
 {
-
+    int hart = mycpuid();
+    int irq = plic_claim();//领取中断号
+    switch (irq)
+    {
+    case UART_IRQ:             // 串口中断（键盘输入）
+        uart_intr();
+        break;
+    default:
+        printf("unexpected PLIC irq=%d on hart=%d\n", irq, hart);
+        break;
+    }
+    if (irq)
+    plic_complete(irq);//完成中断处理
 }
 
 // 时钟中断处理 (基于CLINT)
@@ -79,7 +91,7 @@ void timer_interrupt_handler()
     if(mycpuid()==0)
     {
         timer_update();
-        printf("time %d\n", timer_get_ticks());
+        //printf("time %d\n", timer_get_ticks());
     }
     // 设置下一个时钟中断时间
     w_stimecmp(r_time() + INTERVAL);
@@ -108,7 +120,9 @@ void trap_kernel_handler()
         case 5:
             timer_interrupt_handler();    // 里面会续期: stimecmp = time + INTERVAL
             return;
-            
+        case 9:
+            external_interrupt_handler();
+            return;
         
         default:
             break;

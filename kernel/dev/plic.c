@@ -21,7 +21,7 @@ void plic_inithart()
     *(uint32*)PLIC_SPRIORITY(hartid) = 0;
 }
 
-// 获取中断号
+// 获取中断号,claim
 int plic_claim(void)
 {
     int hartid = mycpuid();
@@ -29,7 +29,7 @@ int plic_claim(void)
     return irq;
 }
 
-// 确认该中断号对应中断已经完成
+// 确认该中断号对应中断已经完成,complete
 void plic_complete(int irq)
 {
     int hartid = mycpuid();
