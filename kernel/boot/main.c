@@ -20,16 +20,13 @@ int main(void)
         trap_kernel_init();
         print_init();
         uart_init();
-        //pmem_init();
-        //kvm_init();
-        //kvm_inithart();
+        
 
         // 安装 S-mode trap 入口（全局一次）
        
 
         // 本核的中断/PLIC/定时器（每核）
         trap_kernel_inithart();   // 内部应打开 SIE_STIE + SSTATUS_SIE
-        timer_create();           // 预约首次 stimecmp = time + INTERVAL
 
         printf("cpu %d is booting! Sstc timer test starts.\n", id);
 
@@ -55,8 +52,6 @@ int main(void)
 
         // 每核初始化：打开本核中断 & 预约本核 stimecmp
         trap_kernel_inithart();
-        timer_create();
-
         printf("cpu %d is booting! Sstc timer armed.\n", id);
 
         // 次核也跑一个轻量观测（减少刷屏：每 50 tick 打印一次）

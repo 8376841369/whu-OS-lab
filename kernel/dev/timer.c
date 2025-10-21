@@ -17,8 +17,8 @@ extern void timer_vector();
 // called in start.c
 void timer_init()
 {
-    w_menvcfg(r_menvcfg() | (1L<<63)); // 允许S模式下的写入stimecmp CSR
-    w_mcounteren(r_mcounteren() | 2); //控制S 态能否读一组计数器 CSR 即time
+    w_menvcfg(r_menvcfg() | (1L<<63)); // 使用SStc extension
+    w_mcounteren(r_mcounteren() | 2); //控制S 态能否读一组计数器 CSR 即time timecmp
     w_stimecmp(r_time() + INTERVAL);
 }//借鉴自 xv6-riscv
 
@@ -37,10 +37,13 @@ void timer_create()
         spinlock_init(&sys_timer.lk, "timer");
     }
     // 2) 打开 S 态中断：
-    //    - sstatus.SIE：S 态全局中断开关
-    w_sstatus(r_sstatus()| SSTATUS_SIE);//允许S态中断
-    // 设置下一个时钟中断时间
-    w_stimecmp(r_time() + INTERVAL);
+    
+      // 设置下一个时钟中断时间
+     w_stimecmp(r_time() + INTERVAL);
+    // //    - sstatus.SIE：S 态全局中断开关
+     w_sstatus(r_sstatus()| SSTATUS_SIE);//允许S态中断
+  
+    
 }
 
 // 时钟更新(ticks++ with lock)

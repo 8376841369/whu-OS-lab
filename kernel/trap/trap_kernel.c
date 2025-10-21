@@ -55,7 +55,6 @@ extern void kernel_vector();
 // 初始化trap中全局共享的东西
 void trap_kernel_init()
 {
-    w_stvec((uint64)kernel_vector);
     plic_init();
     w_sip(0);
 }
@@ -63,8 +62,9 @@ void trap_kernel_init()
 // 各个核心trap初始化
 void trap_kernel_inithart()
 {
-    plic_inithart();
     timer_create();
+    w_stvec((uint64)kernel_vector);
+    plic_inithart();
 }
 
 // 外设中断处理 (基于PLIC)
@@ -72,8 +72,11 @@ void external_interrupt_handler()
 {
     int hart = mycpuid();
     int irq = plic_claim();//领取中断号
+    
     switch (irq)
     {
+    case 0:                 // 无中断
+        break;
     case UART_IRQ:             // 串口中断（键盘输入）
         uart_intr();
         break;
