@@ -94,7 +94,7 @@ void timer_interrupt_handler()
     if(mycpuid()==0)
     {
         timer_update();
-        //printf("time %d\n", timer_get_ticks());
+        printf("time %d\n", timer_get_ticks());
     }
     // 设置下一个时钟中断时间
     w_stimecmp(r_time() + INTERVAL);
@@ -122,6 +122,7 @@ void trap_kernel_handler()
         {
         case 5:
             timer_interrupt_handler();    // 里面会续期: stimecmp = time + INTERVAL
+            
             return;
         case 9:
             external_interrupt_handler();

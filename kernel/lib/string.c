@@ -8,3 +8,12 @@ void *memset(void *dst, int c, int64 n) {
     }
     return dst;
 }
+
+void *memcpy(void* dst, const void* src, uint64 n) {
+    unsigned char* d = (unsigned char*)dst;
+    const unsigned char* s = (const unsigned char*)src;
+    for (uint64 i = 0; i < n; ++i) {
+        d[i] = s[i];
+    }
+    return dst;
+}

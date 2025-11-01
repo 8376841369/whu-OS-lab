@@ -1,6 +1,7 @@
 #include "mem/vmem.h"
 #include "mem/pmem.h"
 #include "lib/print.h"
+#include "memlayout.h"
 #include "riscv.h"
 
 //目前的问题：如果写在同意PA，释放时会出现UAF
@@ -18,10 +19,13 @@ static inline void tlb_flush_all(void){ sfence_vma(); }
 
 pgtbl_t kernel_pgtbl = 0;
 
+// in trampoline.S
+extern char trampoline[];
+
+
 
 // 假设现在 VA==PA，因此这两个转换是 no-op；未来可改成带偏移的实现
-static inline void*  pa2kva(uint64 pa) { return (void*)pa; }
-static inline uint64 kva2pa(void* kva) { return (uint64)kva; }
+
 
 
 void   vm_print(pgtbl_t pgtbl)
@@ -156,6 +160,16 @@ void kvm_init()
     memset(kernel_pgtbl, 0, PAGESIZE);
     vm_mappages(kernel_pgtbl, REG_BASE, REG_BASE, REG_SIZE, PTE_R | PTE_W);
     vm_mappages(kernel_pgtbl, MEM_BASE, MEM_BASE, MEM_SIZE, PTE_R | PTE_W | PTE_X);
+    // trampoline 映射
+    uint64 trampoline_pa = kva2pa((void*)trampoline);
+    
+    vm_mappages(kernel_pgtbl, (uint64)TRAMPOLINE, trampoline_pa, PAGESIZE, PTE_A|PTE_V|PTE_R | PTE_X);
+    //UART映射
+    vm_mappages(kernel_pgtbl,UART_BASE,UART_BASE,PAGESIZE,PTE_R | PTE_W);
+    // PLIC映射
+    vm_mappages(kernel_pgtbl, PLIC_BASE, PLIC_BASE, 0x400000, PTE_R | PTE_W);
+    
+  
 }
 
 void kvm_inithart()

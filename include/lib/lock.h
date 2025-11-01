@@ -2,6 +2,7 @@
 #define __LOCK_H__
 
 #include "common.h"
+#include "proc/cpu.h"
 
 typedef struct spinlock {
     int locked;

@@ -39,7 +39,7 @@ void timer_create()
     // 2) 打开 S 态中断：
     
       // 设置下一个时钟中断时间
-     w_stimecmp(r_time() + INTERVAL);
+     
     // //    - sstatus.SIE：S 态全局中断开关
      w_sstatus(r_sstatus()| SSTATUS_SIE);//允许S态中断
   

@@ -67,6 +67,9 @@ typedef uint64* pgtbl_t;
 // 定义一个相当大的VA, 规定所有VA不得大于它
 #define VA_MAX (1ul << 38)
 
+inline void*  pa2kva(uint64 pa) { return (void*)pa; }
+inline uint64 kva2pa(void* kva) { return (uint64)kva; }
+
 void   vm_print(pgtbl_t pgtbl);
 pte_t* vm_getpte(pgtbl_t pgtbl, uint64 va, bool alloc);
 void   vm_mappages(pgtbl_t pgtbl, uint64 va, uint64 pa, uint64 len, int perm);
