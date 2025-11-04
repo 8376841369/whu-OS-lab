@@ -4,6 +4,7 @@
 #include "mem/vmem.h"
 #include "memlayout.h"
 #include "riscv.h"
+#include "syscall_h/syscall.h"
 
 
 // in trampoline.S
@@ -22,7 +23,6 @@ extern char* exception_info[16]; // 异常错误信息
 // 用户态trap处理的核心逻辑
 void trap_user_handler()
 {
-
     w_stvec((uint64)kernel_vector);
 
     uint64 sepc = r_sepc();          // 记录了发生异常时的pc值
@@ -36,12 +36,14 @@ void trap_user_handler()
     int trap_id = scause & 0xf; 
     int is_interrupt = (scause >> 63) & 1;
    
-    // printf("trap from user mode: cause=%d  is_interrupt=%d stval=0x%lx sepc=0x%lx\n",
-    //        trap_id,
+    // printf("trap from user mode: cause=%d  is_interrupt=%d stval=0x%lx sepc=0x%lx cpu=%d\n",
+    //        scause,
     //        is_interrupt,
     //        stval,
-    //        sepc);
-   
+    //        sepc,
+    //        r_tp()
+    //        );
+
     // 中断异常处理核心逻辑
     if(is_interrupt)
     {
@@ -67,6 +69,7 @@ void trap_user_handler()
         // 先更新pc，防止重复执行syscall指令
         p->tf->epc = sepc + 4;
         printf("syscall from user mode\n");
+        syscall();
         intr_on(); // 允许中断
         goto RETURN_TO_USER;
        
@@ -88,10 +91,11 @@ RETURN_TO_USER:
 // 内核态返回用户态
 void trap_user_return()
 {
+    
     proc_t *p = myproc();
     
     volatile int64 fn = (uint64)TRAMPOLINE + ((uint64)user_return - (uint64)trampoline);
-    // volatile int64 fn = 0x0000000080002090;
+    
     w_stvec((uint64)TRAMPOLINE + ((uint64)user_vector - (uint64)trampoline));
      //中断相关寄存器设置
     uint64 x = r_sstatus();
@@ -99,7 +103,7 @@ void trap_user_return()
     x |=  SSTATUS_SPIE;
     w_sstatus(x);
   
-     w_sepc(p->tf->epc);  // 不是必须，但一致性OK
+    w_sepc(p->tf->epc);  // 不是必须，但一致性OK
   
     
    ((void (*)(uint64,uint64))fn)((uint64)TRAPFRAME, MAKE_SATP(p->pgtbl));//调用了user_return

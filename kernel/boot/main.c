@@ -9,6 +9,7 @@
 #include "trap/trap.h"
 #include "dev/timer.h"
 #include "proc/cpu.h"
+#include "dev/plic.h"
 
 volatile static int started = 0;
 
@@ -25,11 +26,12 @@ int main(void)
         print_init();
         uart_init();
         
+        
 
         // 安装 S-mode trap 入口（全局一次）
 
         // 本核的中断/PLIC/定时器（每核）
-        trap_kernel_inithart();   // 内部应打开 SIE_STIE + SSTATUS_SIE
+        //trap_kernel_inithart();   // 内部应打开 SIE_STIE + SSTATUS_SIE
 
        
         printf("cpu %d is booting! Sstc timer test starts.\n", id);

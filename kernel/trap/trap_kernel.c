@@ -78,6 +78,7 @@ void external_interrupt_handler()
     case 0:                 // 无中断
         break;
     case UART_IRQ:             // 串口中断（键盘输入）
+        //printf("kernel external interrupt\n");
         uart_intr();
         break;
     default:
@@ -94,7 +95,7 @@ void timer_interrupt_handler()
     if(mycpuid()==0)
     {
         timer_update();
-        printf("time %d\n", timer_get_ticks());
+       // printf("time %d\n", timer_get_ticks());
     }
     // 设置下一个时钟中断时间
     w_stimecmp(r_time() + INTERVAL);
@@ -125,6 +126,7 @@ void trap_kernel_handler()
             
             return;
         case 9:
+            
             external_interrupt_handler();
             return;
         

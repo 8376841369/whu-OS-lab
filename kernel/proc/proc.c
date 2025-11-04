@@ -79,7 +79,7 @@ pgtbl_t proc_pgtbl_init(uint64 trapframe)
 */
 void proc_make_fisrt()
 {   
-     intr_off();
+    intr_off();
     uint64 page;//data+code
     proc_t* p = &proczero;
     memset(p,0,sizeof(*p));
@@ -95,7 +95,7 @@ void proc_make_fisrt()
     memset(tf_kva,0,PAGESIZE);
     uint64 tf_pa = kva2pa(tf_kva);
     // pagetable 初始化
-   pgtbl_t upgt = proc_pgtbl_init(tf_pa);
+    pgtbl_t upgt = proc_pgtbl_init(tf_pa);
     p->pgtbl = upgt;
     // ustack 映射 + 设置 ustack_pages 
     void * ustack_kva = pmem_alloc(false);
@@ -129,7 +129,7 @@ void proc_make_fisrt()
     // tf字段设置
     p->tf->epc = CODE_VA; // 从代码段开始执行
     p->tf->sp = USTACK_TOP; // 用户栈顶
-    p->tf->kernel_satp = MAKE_SATP(kernel_pgtbl);
+    p->tf->kernel_satp = MAKE_SATP(kernel_pgtbl);//内核页表
     p->tf->kernel_hartid = r_tp();
     p->tf->kernel_sp = 0; // 内核栈顶
     p->tf->kernel_trap = (uint64)trap_user_handler;
@@ -153,14 +153,11 @@ void proc_make_fisrt()
 
     memset(&p->ctx,0,sizeof(p->ctx));
     p->ctx.ra = (uint64)trap_user_return;
-    p->ctx.sp = p->kstack;
-
-   
-
-
+    p->ctx.sp = p->kstack;  
+   //dummy switch
+    
     extern char user_vector[];
     w_stvec((uint64)TRAMPOLINE + ((uint64)user_vector - (uint64)trampoline));
-    // 方案B：没有 sched_ctx，用临时 dummy 也可
     context_t dummy = {0};
     swtch(&dummy, &p->ctx);
 
