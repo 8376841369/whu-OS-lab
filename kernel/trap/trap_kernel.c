@@ -94,8 +94,8 @@ void timer_interrupt_handler()
 {
     if(mycpuid()==0)
     {
-        timer_update();
-       // printf("time %d\n", timer_get_ticks());
+         timer_update();
+         //printf("time %d\n", timer_get_ticks());
     }
     // 设置下一个时钟中断时间
     w_stimecmp(r_time() + INTERVAL);

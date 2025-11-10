@@ -1,2 +1,3 @@
 
-#define SYS_print 0   // 系统调用测试
+#define SYS_print 7
+#define SYS_brk 1

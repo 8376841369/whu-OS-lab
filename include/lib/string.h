@@ -7,4 +7,6 @@ void *memset(void *dst, int c, int64 n);
 
 void *memcpy(void* dst, const void* src, uint64 n);
 
+unsigned long kstrlen(const char *s);
+
 #endif

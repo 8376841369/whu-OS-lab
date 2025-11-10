@@ -10,6 +10,7 @@ int main()
 
     heap_top = syscall(SYS_brk, heap_top - 4096 * 5);
 
+    syscall(SYS_print, "\nuser begin\n");
     while(1);
     return 0;
 }

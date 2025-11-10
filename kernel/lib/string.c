@@ -17,3 +17,13 @@ void *memcpy(void* dst, const void* src, uint64 n) {
     }
     return dst;
 }
+
+
+/* 返回以 '\0' 结尾的C串长度（不含 '\0'） */
+unsigned long kstrlen(const char *s) {
+    const char *p = s;
+    while (*p) {
+        ++p;
+    }
+    return (unsigned long)(p - s);
+}

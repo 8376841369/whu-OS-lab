@@ -185,7 +185,48 @@ void uvm_copyout(pgtbl_t pgtbl, uint64 dst, uint64 src, uint32 len)
 // 用户态字符串拷贝到内核态
 // 最多拷贝maxlen字节, 中途遇到'\0'则终止
 // 注意: src dst 不一定是 page-aligned
-void uvm_copyin_str(pgtbl_t pgtbl, uint64 dst, uint64 src, uint32 maxlen)
+int uvm_copyin_str(pgtbl_t pagetable, char *dst, uint64 srcva, uint64 max)
 {
+  uint64 n, va0, pa0;
+  int got_null = 0;
+  uint64 total = 0;
 
+  while (got_null == 0 && max > 0) {
+    va0 = PG_ROUND_DOWN(srcva);
+    pte_t* pte = vm_getpte(pagetable, va0, false);
+    pa0 = PTE2PA(*pte);
+    if (pa0 == 0) {
+      
+      return -1;
+    }
+
+    n = PGSIZE - (srcva - va0);
+    if (n > max) n = max;
+
+    char *p = (char *)(pa0 + (srcva - va0)); // 注意：若需要 pa2kva，这里自己替换
+
+   
+
+    while (n > 0) {
+      unsigned char c = *(unsigned char *)p;
+      if (c == '\0') {
+        *dst = '\0';
+        got_null = 1;
+      
+        break;
+      } else {
+        *dst = (char)c;
+        total++;
+      }
+      --n; --max; p++; dst++;
+    }
+
+    srcva = va0 + PGSIZE; // 下一页
+  }
+
+  if (got_null) {
+    return 0;
+  } else {
+    return -1;
+  }
 }

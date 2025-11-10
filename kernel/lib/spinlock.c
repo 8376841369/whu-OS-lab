@@ -2,7 +2,7 @@
 #include "lib/print.h"
 #include "proc/proc.h"
 #include "riscv.h"
-
+#include "proc/cpu.h"
 
 int holding(struct spinlock *lk)
 {
