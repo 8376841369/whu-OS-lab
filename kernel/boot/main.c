@@ -25,6 +25,7 @@ int main(void)
         trap_kernel_init();
         print_init();
         uart_init();
+        proc_init();
         
         
 

@@ -93,8 +93,9 @@ void uvm_mmap(uint64 begin, uint32 npages, int perm)
     if(npages == 0) return;
     assert(begin % PAGESIZE == 0, "uvm_mmap: begin not aligned");
 
+    int end = begin + npages * PAGESIZE;
     // 修改 mmap 链 (分情况的链式操作)
-
+    
     // 修改页表 (物理页申请 + 页表映射)
 
 }
@@ -105,8 +106,19 @@ void uvm_munmap(uint64 begin, uint32 npages)
     if(npages == 0) return;
     assert(begin % PAGESIZE == 0, "uvm_munmap: begin not aligned");
 
+    uint64 a;
+    pte_t *pte;
     // new mmap_region 的产生
-
+    for(int a = begin;a< begin+PAGESIZE*npages;a+=PAGESIZE)
+    {
+        if(pte=vm_getpte(myproc()->pgtbl,a,false)==0)
+            panic("uvm_munmap: vm_getpte failed");
+        if((*pte & PTE_V) ==0)
+            panic("uvm_munmap: page not present");
+        uint64 pa = PTE_TO_PA(*pte);
+        pmem_free(pa, false);
+        *pte =0;
+    }
     // 尝试合并 mmap_region
 
     // 页表释放
@@ -229,4 +241,60 @@ int uvm_copyin_str(pgtbl_t pagetable, char *dst, uint64 srcva, uint64 max)
   } else {
     return -1;
   }
+}
+
+int uvmcopy(pgtbl_t old, pgtbl_t new, uint64 heap_top,uint32 ustack_pages)
+{
+   
+    pte_t *pte;
+    uint64 pa, i;
+    uint64 flags;
+    char *mem;
+    
+    for( i =PAGESIZE;i<heap_top;i+=PAGESIZE)
+    {
+        if((pte = vm_getpte(old, i, false))==0)
+        {
+            panic("uvmcopy: vm_getpte failed");
+        }
+        if((*pte & PTE_V) ==0)
+        {
+            panic("uvmcopy: page not present");
+        }
+        pa = PTE_TO_PA(*pte);
+        flags = PTE_FLAGS(*pte);
+        if((mem= (char*)pmem_alloc(false))==0)
+        {
+            goto err;
+        }
+        memmove(mem, (char*)pa, PAGESIZE);
+        vm_mappages(new, i, (uint64)mem, PAGESIZE, flags);
+    }
+    //用户栈复制
+    uint64 stack_top = TRAPFRAME;
+    uint64 stack_base = stack_top - ustack_pages * PGSIZE;
+    for( i = stack_base;i<stack_top;i+=PAGESIZE)
+    {
+        if((pte = vm_getpte(old, i, false))==0)
+        {
+            panic("uvmcopy: vm_getpte failed for ustack");
+        }
+        if((*pte & PTE_V) ==0)
+        {
+            panic("uvmcopy: page not present for ustack");
+        }
+        pa = PTE_TO_PA(*pte);
+        flags = PTE_FLAGS(*pte);
+        if((mem= (char*)pmem_alloc(false))==0)
+        {
+            goto err;
+        }
+        memmove(mem, (char*)pa, PAGESIZE);
+        vm_mappages(new, i, (uint64)mem, PAGESIZE, flags);
+    }
+    return 0;
+
+err:
+    uvm_munmap(0, i / PAGESIZE);
+    return -1;
 }

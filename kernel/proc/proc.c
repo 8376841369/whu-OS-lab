@@ -6,7 +6,7 @@
 #include "proc/initcode.h"
 #include "memlayout.h"
 #include "riscv.h"
-
+#include "proc/proc.h"
 
 // in trampoline.S
 extern char trampoline[];
@@ -27,12 +27,19 @@ extern pgtbl_t kernel_pgtbl;
 #define NPROC 64
 static proc_t procs[NPROC];
 
+
 // 第一个进程的指针
 //static proc_t* proczero;
 
 // 全局的pid和保护它的锁 
 static int global_pid = 1;
 static spinlock_t lk_pid;
+
+// helps ensure that wakeups of wait()ing
+// parents are not lost. helps obey the
+// memory model when using p->parent.
+// must be acquired before any p->lock.
+struct spinlock wait_lock;
 
 
 // 申请一个pid(锁保护)
@@ -60,7 +67,46 @@ static void fork_return()
 // 申请tf和pgtbl使用的物理页
 proc_t* proc_alloc()
 {
+    proc_t* p;
 
+    for(p = procs;p<&procs[NPROC];p++)
+    {
+        spinlock_acquire(&p->lk);
+        if(p->state == UNUSED)
+        {
+            goto FOUND;
+        }
+        else
+        {
+            spinlock_release(&p->lk);
+        }
+    }
+    return 0;//fail
+FOUND:
+    p->pid = alloc_pid();
+    p->state = RUNNABLE;
+
+    // trapframe 申请
+    void * tf_kva = pmem_alloc(true);
+    if(!tf_kva)
+    {
+        proc_free(p);
+        spinlock_release(&p->lk);
+        return 0;
+    }
+    memset(tf_kva,0,PAGESIZE);
+    p->tf = (trapframe_t*)tf_kva;
+
+    // pgtbl 申请
+    pgtbl_t upgt = proc_pgtbl_init(kva2pa(tf_kva));
+    p->pgtbl = upgt;
+    // 上下文设置
+    memset(&p->ctx,0,sizeof(p->ctx));
+    p->ctx.ra = (uint64)fork_return;
+    p->ctx.sp = p->kstack; // 内核栈顶
+
+    
+    return p;
 }
 
 // 释放一个进程空间
@@ -70,13 +116,43 @@ proc_t* proc_alloc()
 // tips: 调用者需持有p->lk
 void proc_free(proc_t* p)
 {
-
+    if(p->tf)
+    {
+        pmem_free((uint64)(p->tf), true);
+        p->tf = 0;
+    }
+    if(p->pgtbl)
+    {
+        vm_unmappages(p->pgtbl,0,VA_MAX,true);
+        pmem_free((uint64)(p->pgtbl), true);
+        p->pgtbl = 0;
+    }
+    p->pid = 0;
+    p->parent = 0;
+    p->exit_state = 0;
+    p->sleep_space = 0;
+    p->heap_top     = 0;
+    p->ustack_pages = 0;
+    
+   
+    memset(&p->ctx, 0, sizeof(p->ctx));
+    // 如果你希望更稳妥，也可以把 kstack 置 0（前提是别再用到它）
+    // p->kstack = 0;
+    p->state = UNUSED;
 }
 
 // 进程模块初始化
 void proc_init()
 {
-
+     struct proc *p;
+  
+    spinlock_init(&lk_pid, "nextpid");
+    spinlock_init(&wait_lock, "wait_lock");
+    for(p = procs; p < &procs[NPROC]; p++) {
+      spinlock_init(&p->lk, "proc");
+      p->state = UNUSED;
+      p->kstack = KSTACK((int) (p - procs));
+  }
 }
 
 
@@ -115,10 +191,10 @@ pgtbl_t proc_pgtbl_init(uint64 trapframe)
     memset(upgt,0,PAGESIZE);
     trapframe = PG_ROUND_DOWN(trapframe);
     //TRAMFRAME是一个虚拟地址，映射到每一个进程的trapframe的物理地址
-    vm_mappages(upgt,(uint64)TRAPFRAME,trapframe,PGSIZE,PTE_R | PTE_W);
+    vm_mappages(upgt,(uint64)TRAPFRAME,trapframe,PGSIZE,PTE_R | PTE_W|PTE_V);
     //trampoline 映射
     uint64 tramp_pa = kva2pa((void*)trampoline);
-    vm_mappages(upgt,(uint64)TRAMPOLINE,tramp_pa,PGSIZE,PTE_X | PTE_R);
+    vm_mappages(upgt,(uint64)TRAMPOLINE,tramp_pa,PGSIZE,PTE_X | PTE_R|PTE_V);
 
     return upgt;
 }
@@ -228,7 +304,33 @@ void proc_make_first()
 // UNUSED -> RUNNABLE
 int proc_fork()
 {
+    int i, pid;
+    struct proc *np;
+    struct proc *p = myproc();
 
+    if((np = proc_alloc()) == 0)
+    {
+        return -1;
+    }
+  
+    if(uvmcopy(p->pgtbl,np->pgtbl,p->heap_top , p->ustack_pages )<0)
+    {
+        proc_free(np);
+        spinlock_release(&np->lk);
+        return -1;
+    }
+    *(np->tf) =*(p->tf);//复制trapframe
+    np->tf->a0 = 0;//子进程返回值为0
+    pid = np->pid;
+    spinlock_release(&np->lk);
+
+    spinlock_acquire(&wait_lock);
+    np->parent = p;
+    spinlock_release(&wait_lock);
+    spinlock_acquire(&np->lk);
+    np->state = RUNNABLE;
+    spinlock_release(&np->lk);
+    return pid;
 }
 
 // 进程放弃CPU的控制权

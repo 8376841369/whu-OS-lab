@@ -15,6 +15,7 @@ static uint64 (*syscalls[])(void) = {
     [SYS_copyout]       sys_copyout,
     [SYS_copyinstr]     sys_copyinstr,
     [SYS_print]         sys_print, 
+    [SYS_fork]          sys_fork,
 };
 
 // 系统调用

@@ -158,7 +158,7 @@ uint64 sys_print()
 // 进程复制
 uint64 sys_fork()
 {
-
+    return proc_fork();
 }
 
 // 进程等待

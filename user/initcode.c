@@ -4,13 +4,17 @@
 
 int main()
 {
-    long long heap_top = syscall(SYS_brk, 0);
+    int pid = syscall(SYS_fork);
 
-    heap_top = syscall(SYS_brk, heap_top + 4096 * 10);
-
-    heap_top = syscall(SYS_brk, heap_top - 4096 * 5);
-
-    syscall(SYS_print, "\nuser begin\n");
+    if(pid == 0) { // 子进程
+        for(int i = 0; i < 100000000; i++);
+        syscall(SYS_print, "child: hello\n");
+        
+    }else
+    {
+        syscall(SYS_print, "parent: hello\n");
+      
+    }
     while(1);
     return 0;
 }
