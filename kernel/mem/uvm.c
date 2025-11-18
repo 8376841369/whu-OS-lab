@@ -191,7 +191,26 @@ void uvm_copyin(pgtbl_t pgtbl, uint64 dst, uint64 src, uint32 len)
 // 内核态地址空间[src, src+len） 拷贝至 用户态地址空间[dst, dst+len)
 void uvm_copyout(pgtbl_t pgtbl, uint64 dst, uint64 src, uint32 len)
 {
+    uint64 n, va0, pa0;
+    while(len>0)
+    {
+        va0 = PG_ROUND_DOWN(dst);
+        pte_t* pte = vm_getpte(pgtbl, va0, false);
+        pa0 = PTE2PA(*pte);
+        if(pa0 ==0)
+        {
+           panic("uvm_copyout: page not present");
+        }
+        n = PAGESIZE - (dst - va0);
+        if(n > len)
+          n = len;
+        memmove((void *)(pa0 + (dst - va0)), src, n);
 
+        len -= n;
+        src += n;
+        dst = va0 + PGSIZE;
+    }
+   
 }
 
 // 用户态字符串拷贝到内核态

@@ -165,7 +165,9 @@ uint64 sys_fork()
 // uint64 addr  子进程退出时的exit_state需要放到这里 
 uint64 sys_wait()
 {
-
+    uint64 p;
+  arg_uint64(0, &p);
+  return proc_wait(p);
 }
 
 // 进程退出

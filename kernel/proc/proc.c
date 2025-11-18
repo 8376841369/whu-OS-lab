@@ -62,6 +62,8 @@ static void fork_return()
     trap_user_return();
 }
 
+
+
 // 返回一个未使用的进程空间
 // 设置pid + 设置上下文中的ra和sp
 // 申请tf和pgtbl使用的物理页
@@ -345,6 +347,48 @@ void proc_yield()
 // 成功返回子进程pid，失败返回-1
 int proc_wait(uint64 addr)
 {
+    struct proc *pp;
+    int havekids, pid;
+    struct proc *p = myproc();
+
+    spinlock_acquire(&wait_lock);
+
+    for(;;)
+    {
+        havekids = 0;
+        for(pp = procs;pp<&procs[NPROC];pp++)
+        {
+            if(pp->parent == p)
+            {
+                spinlock_acquire(&pp->lk);
+                havekids = 1;
+                if(pp->state == ZOMBIE)
+                {
+                    // found one
+                    pid = pp->pid;
+                    if(addr != 0  )
+                    {
+                        spinlock_release(&pp->lk);
+                        spinlock_release(&wait_lock);
+                        return -1;
+                    }
+                    uvm_copyout(p->pgtbl, addr, (uint64)&pp->exit_state, sizeof(pp->exit_state));
+                    proc_free(pp);
+                    spinlock_release(&pp->lk);
+                    spinlock_release(&wait_lock);
+                    return pid;
+                }
+                spinlock_release(&pp->lk);
+            }
+        }
+        if(!havekids )
+        {
+            spinlock_release(&wait_lock);
+            return -1;
+        }
+        //还差sleep没有完成
+        proc_sleep(p, &wait_lock);
+    }
 
 }
 
@@ -373,7 +417,21 @@ void proc_exit(int exit_state)
 // ps: 调用者保证持有当前进程的锁
 void proc_sched()
 {
+    int origin;
+    proc_t *p = myproc();
 
+    if(!spinlock_holding(&p->lk))
+        panic("proc_sched: p->lk not held");
+    if(mycpu()->noff != 1)
+        panic("proc_sched: sched locks");
+    if(p->state == RUNNING)
+        panic("proc_sched: running");
+    if(intr_get())
+        panic("proc_sched: interruptible");
+    
+    origin = mycpu()->origin;
+    swtch(&p->ctx, &mycpu()->ctx);
+    mycpu()->origin = origin;
 }
 
 // 调度器
@@ -385,7 +443,18 @@ void proc_scheduler()
 // 进程睡眠在sleep_space
 void proc_sleep(void* sleep_space, spinlock_t* lk)
 {
+    proc_t *p = myproc();
+    spinlock_acquire(&p->lk);
+    spinlock_release(lk);
 
+    p->sleep_space = sleep_space;
+    p->state = SLEEPING;
+
+    proc_sched();
+
+    p->sleep_space = 0;
+    spinlock_release(&p->lk);
+    spinlock_acquire(lk);
 }
 
 // 唤醒所有在sleep_space沉睡的进程
