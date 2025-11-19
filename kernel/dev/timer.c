@@ -26,7 +26,7 @@ void timer_init()
 /*--------------------- 工作在S-mode --------------------*/
 
 // 系统时钟
-static timer_t sys_timer;
+timer_t sys_timer;
 
 // 时钟创建(初始化系统时钟)
 void timer_create()

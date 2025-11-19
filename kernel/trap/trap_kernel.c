@@ -7,6 +7,7 @@
 #include "dev/plic.h"
 #include "memlayout.h"
 #include "riscv.h"
+#include "proc/cpu.h"
 
 // 中断信息
 static char* interrupt_info[16] = {

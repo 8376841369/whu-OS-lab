@@ -21,7 +21,7 @@ typedef enum {false = 0, true = 1} bool;
 #define NULL ((void*)0)
 #endif
 
-#define NCPU 1
+#define NCPU 2
 #define PAGESIZE 4096
 
 #endif

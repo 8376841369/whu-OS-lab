@@ -111,7 +111,7 @@ void uvm_munmap(uint64 begin, uint32 npages)
     // new mmap_region 的产生
     for(int a = begin;a< begin+PAGESIZE*npages;a+=PAGESIZE)
     {
-        if(pte=vm_getpte(myproc()->pgtbl,a,false)==0)
+        if((pte=vm_getpte(myproc()->pgtbl,a,false))==0)
             panic("uvm_munmap: vm_getpte failed");
         if((*pte & PTE_V) ==0)
             panic("uvm_munmap: page not present");
@@ -192,6 +192,7 @@ void uvm_copyin(pgtbl_t pgtbl, uint64 dst, uint64 src, uint32 len)
 void uvm_copyout(pgtbl_t pgtbl, uint64 dst, uint64 src, uint32 len)
 {
     uint64 n, va0, pa0;
+    const char *srcp = (const char *)src;   // 把 uint64 当成内核虚拟地址
     while(len>0)
     {
         va0 = PG_ROUND_DOWN(dst);
@@ -204,10 +205,10 @@ void uvm_copyout(pgtbl_t pgtbl, uint64 dst, uint64 src, uint32 len)
         n = PAGESIZE - (dst - va0);
         if(n > len)
           n = len;
-        memmove((void *)(pa0 + (dst - va0)), src, n);
+        memmove((void *)(pa0 + (dst - va0)), srcp, n);
 
         len -= n;
-        src += n;
+        srcp += n;
         dst = va0 + PGSIZE;
     }
    

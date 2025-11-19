@@ -5,7 +5,7 @@
 #include "memlayout.h"
 #include "riscv.h"
 #include "syscall_h/syscall.h"
-
+extern pgtbl_t kernel_pgtbl;
 
 // in trampoline.S
 extern char trampoline[];      // 内核和用户切换的代码
@@ -68,9 +68,9 @@ void trap_user_handler()
     case 8:// syscall
         // 先更新pc，防止重复执行syscall指令
         p->tf->epc = sepc + 4;
-        printf("syscall from user mode\n");
-        syscall();
         intr_on(); // 允许中断
+        syscall();
+      
         goto RETURN_TO_USER;
        
     
@@ -93,7 +93,13 @@ void trap_user_return()
 {
     
     proc_t *p = myproc();
-    
+   intr_off();
+
+    p->tf->kernel_satp = MAKE_SATP(kernel_pgtbl);//内核页表
+    p->tf->kernel_hartid = r_tp();
+    p->tf->kernel_sp = p->kstack+PAGESIZE; // 内核栈顶
+    p->tf->kernel_trap = (uint64)trap_user_handler;
+
     volatile int64 fn = (uint64)TRAMPOLINE + ((uint64)user_return - (uint64)trampoline);
     
     w_stvec((uint64)TRAMPOLINE + ((uint64)user_vector - (uint64)trampoline));
@@ -102,10 +108,10 @@ void trap_user_return()
     x &= ~SSTATUS_SPP;
     x |=  SSTATUS_SPIE;
     w_sstatus(x);
-  
-    w_sepc(p->tf->epc);  // 不是必须，但一致性OK
-  
     
+    w_sepc(p->tf->epc);  // 不是必须，但一致性OK
+   // printf("trap_user_return:epc=0x%lx\n",  p->tf->epc);
+   
    ((void (*)(uint64,uint64))fn)((uint64)TRAPFRAME, MAKE_SATP(p->pgtbl));//调用了user_return
     panic("trap_user_return unreachable");
 }

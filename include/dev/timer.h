@@ -9,8 +9,11 @@ typedef struct timer {
     spinlock_t lk;
 } timer_t;
 
+extern timer_t sys_timer;
+
 // 每隔INTERVAL个单位时间发生一次时钟中断(1e6大约为0.1s)
 #define INTERVAL 1000000
+
 
 void   timer_init();       // 时钟初始化(in M-mode)
 

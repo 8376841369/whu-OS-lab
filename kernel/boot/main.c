@@ -41,7 +41,8 @@ int main(void)
         started = 1;              // 放行其他核
 
          
-       proc_make_first();      
+       proc_make_first();     
+       proc_scheduler(); 
 
         // 心跳观测循环：每 10 tick 打印一次
         uint64 last = timer_get_ticks();

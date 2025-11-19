@@ -135,7 +135,7 @@ uint64 sys_copyinstr()
 // uint64 addr
 uint64 sys_print()
 {
-    
+    //printf("sys_print called:");
     uint64 addr;
    
     arg_uint64(0,&addr);
@@ -158,6 +158,7 @@ uint64 sys_print()
 // 进程复制
 uint64 sys_fork()
 {
+    //printf("sys_fork called\n");
     return proc_fork();
 }
 
@@ -165,6 +166,7 @@ uint64 sys_fork()
 // uint64 addr  子进程退出时的exit_state需要放到这里 
 uint64 sys_wait()
 {
+   // printf("sys_wait called\n");
     uint64 p;
   arg_uint64(0, &p);
   return proc_wait(p);
@@ -174,7 +176,11 @@ uint64 sys_wait()
 // int exit_state
 uint64 sys_exit()
 {
-
+    printf("sys_exit called\n");
+    int n;
+    arg_uint32(0, (uint32*)&n);
+    proc_exit(n);
+    return 0;// not reached
 }
 
 extern timer_t sys_timer;
@@ -185,4 +191,13 @@ extern timer_t sys_timer;
 uint64 sys_sleep()
 {
 
+    int n,ticks0;
+    arg_uint32(0, (uint32*)&n);
+    spinlock_acquire(&sys_timer.lk);
+    ticks0 = sys_timer.ticks;
+    while (sys_timer.ticks - ticks0 < n) {
+        proc_sleep(&sys_timer, &sys_timer.lk);
+    }
+    spinlock_release(&sys_timer.lk);
+    return 0;
 }

@@ -55,7 +55,7 @@ static int alloc_pid()
 
 // 释放锁 + 调用 trap_user_return
 static void fork_return()
-{
+{   
     // 由于调度器中上了锁，所以这里需要解锁
     proc_t* p = myproc();
     spinlock_release(&p->lk);
@@ -86,7 +86,6 @@ proc_t* proc_alloc()
     return 0;//fail
 FOUND:
     p->pid = alloc_pid();
-    p->state = RUNNABLE;
 
     // trapframe 申请
     void * tf_kva = pmem_alloc(true);
@@ -101,15 +100,28 @@ FOUND:
 
     // pgtbl 申请
     pgtbl_t upgt = proc_pgtbl_init(kva2pa(tf_kva));
+  
     p->pgtbl = upgt;
+   
+     // 内核字段设置
+    void * kstack_pa = pmem_alloc(true);
+    if(!kstack_pa)
+    {
+        panic("proc_alloc: pmem_alloc for kstack failed");
+    }
+    memset(kstack_pa,0,PAGESIZE);
+    vm_mappages(kernel_pgtbl,p->kstack,(uint64)kstack_pa,PAGESIZE,PTE_R | PTE_W);
+    p->tf->kernel_sp = p->kstack+PAGESIZE;// 设置内核栈顶
     // 上下文设置
     memset(&p->ctx,0,sizeof(p->ctx));
     p->ctx.ra = (uint64)fork_return;
-    p->ctx.sp = p->kstack; // 内核栈顶
+    p->ctx.sp = p->kstack+PAGESIZE; // 内核栈顶
 
     
     return p;
 }
+
+
 
 // 释放一个进程空间
 // 释放pgtbl的整个地址空间
@@ -118,16 +130,32 @@ FOUND:
 // tips: 调用者需持有p->lk
 void proc_free(proc_t* p)
 {
-    if(p->tf)
-    {
-        pmem_free((uint64)(p->tf), true);
-        p->tf = 0;
-    }
-    if(p->pgtbl)
-    {
-        vm_unmappages(p->pgtbl,0,VA_MAX,true);
-        pmem_free((uint64)(p->pgtbl), true);
+     if (p->pgtbl) {
+        // 1. 拆代码+堆 [CODE_VA, heap_top)
+        if (p->heap_top > PAGESIZE) {
+            uint64 len = p->heap_top - PAGESIZE;
+            vm_unmappages(p->pgtbl, PAGESIZE, len, true);
+        }
+
+        // 2. 拆用户栈 [USTACK_TOP - ustack_pages*PGSIZE, USTACK_TOP)
+        if (p->ustack_pages > 0) {
+            uint64 stack_bottom =
+                TRAPFRAME - (uint64)p->ustack_pages * PAGESIZE;
+            uint64 stack_len =
+                (uint64)p->ustack_pages * PAGESIZE;
+            vm_unmappages(p->pgtbl, stack_bottom, stack_len, true);
+        }
+
+        // 3. 如果你还有 mmap 区域，也单独拆它们（根据 p->mmap 链信息）
+
+        // 4. 最后释放整个页表根（页表本身的一页）
+        pmem_free((uint64)p->pgtbl, true);
         p->pgtbl = 0;
+    }
+
+    if (p->tf) {
+        pmem_free((uint64)p->tf, true);
+        p->tf = 0;
     }
     p->pid = 0;
     p->parent = 0;
@@ -139,7 +167,6 @@ void proc_free(proc_t* p)
    
     memset(&p->ctx, 0, sizeof(p->ctx));
     // 如果你希望更稳妥，也可以把 kstack 置 0（前提是别再用到它）
-    // p->kstack = 0;
     p->state = UNUSED;
 }
 
@@ -163,22 +190,14 @@ void proc_init()
 static proc_t proczero;
 
 
-static void forkret(void)
+
+// 唤醒一个进程
+static void proc_wakeup_one(proc_t* p)
 {
-    extern char user_return[];
-    proc_t *p = myproc();
-    int64 fn = (uint64)TRAMPOLINE + ((uint64)user_return - (uint64)trampoline);
-
-     //中断相关寄存器设置
-    uint64 x = r_sstatus();
-    x &= ~SSTATUS_SPP;
-    x |=  SSTATUS_SPIE;
-    w_sstatus(x);
-    w_sepc(p->tf->epc);  // 不是必须，但一致性OK
-
-    ((void (*) (uint64,uint64)) fn) ((uint64)p->tf, MAKE_SATP(p->pgtbl));
-    panic("forkret unreachable");
-
+    assert(spinlock_holding(&p->lk), "proc_wakeup_one: lock");
+    if(p->state == SLEEPING && p->sleep_space == p) {
+        p->state = RUNNABLE;
+    }
 }
 
 // 获得一个初始化过的用户页表
@@ -217,24 +236,32 @@ pgtbl_t proc_pgtbl_init(uint64 trapframe)
 */
 void proc_make_first()
 {   
-    intr_off();
-    uint64 page;//data+code
-    proc_t* p = &proczero;
-    memset(p,0,sizeof(*p));
+    // uint64 page;//data+code
+    // proc_t* p = &proczero;
+    // memset(p,0,sizeof(*p));
     
-    // pid 设置
-    p->pid = 1;
-    void * tf_kva =  pmem_alloc(true);
-    p->tf = (trapframe_t*)tf_kva;
-    if(!tf_kva)
+    // // pid 设置
+    // p->pid = 1;
+    // void * tf_kva =  pmem_alloc(true);
+    // p->tf = (trapframe_t*)tf_kva;
+    // if(!tf_kva)
+    // {
+    //     panic("proc_make_first: pmem_alloc for trapframe failed");
+    // }
+    // memset(tf_kva,0,PAGESIZE);
+    // uint64 tf_pa = kva2pa(tf_kva);
+    // // pagetable 初始化
+    // pgtbl_t upgt = proc_pgtbl_init(tf_pa);
+    // p->pgtbl = upgt;
+    struct proc *p;
+    p = proc_alloc();
+  
+    if(!p)
     {
-        panic("proc_make_first: pmem_alloc for trapframe failed");
+        panic("proc_make_first: proc_alloc failed");
     }
-    memset(tf_kva,0,PAGESIZE);
-    uint64 tf_pa = kva2pa(tf_kva);
-    // pagetable 初始化
-    pgtbl_t upgt = proc_pgtbl_init(tf_pa);
-    p->pgtbl = upgt;
+    p->parent = 0; // 第一个进程没有父进程
+    proczero = *p; // 复制到静态变量中
     // ustack 映射 + 设置 ustack_pages 
     void * ustack_kva = pmem_alloc(false);
     if(!ustack_kva)
@@ -246,11 +273,11 @@ void proc_make_first()
 
     int64 USTACK_TOP = TRAPFRAME;
     int64 USTACK_BOTTOM = USTACK_TOP - PAGESIZE;
-    vm_mappages(upgt,USTACK_BOTTOM,ustack_pa,PAGESIZE,PTE_R | PTE_W | PTE_U);
+    vm_mappages(p->pgtbl,USTACK_BOTTOM,ustack_pa,PAGESIZE,PTE_R | PTE_W | PTE_U);
     p->ustack_pages = 1;
     // data + code 映射
     if(initcode_len>PAGESIZE) panic("proc_make_first: initcode too large");
-    page = (uint64)pmem_alloc(false);
+    uint64 page = (uint64)pmem_alloc(false);
     if(!page)
     {
         panic("proc_make_first: pmem_alloc for code+data failed");
@@ -269,44 +296,31 @@ void proc_make_first()
     p->tf->sp = USTACK_TOP; // 用户栈顶
     p->tf->kernel_satp = MAKE_SATP(kernel_pgtbl);//内核页表
     p->tf->kernel_hartid = r_tp();
-    p->tf->kernel_sp = 0; // 内核栈顶
+    p->tf->kernel_sp = p->kstack+PAGESIZE; // 内核栈顶
     p->tf->kernel_trap = (uint64)trap_user_handler;
 
-    // 内核字段设置
-    void * kstack_kva = pmem_alloc(true);
-    if(!kstack_kva)
-    {
-        panic("proc_make_first: pmem_alloc for kstack failed");
-    }
-    memset(kstack_kva,0,PAGESIZE);
-    p->kstack = ((uint64)kstack_kva + PGSIZE) & ~0xFULL; // 栈向下生长，16B对齐
-    p->tf->kernel_sp = p->kstack;// 设置内核栈顶
-
    
-
-    // 上下文切换
-
-    struct cpu *c = mycpu();
-    c->proc = p;
-
-    memset(&p->ctx,0,sizeof(p->ctx));
-    p->ctx.ra = (uint64)trap_user_return;
-    p->ctx.sp = p->kstack;  
-   //dummy switch
     
-    extern char user_vector[];
-    w_stvec((uint64)TRAMPOLINE + ((uint64)user_vector - (uint64)trampoline));
-    context_t dummy = {0};
-    swtch(&dummy, &p->ctx);
+    p->state = RUNNABLE;
+    spinlock_release(&p->lk);
 
-    panic("unexpected return from swtch");
+//    //dummy switch
+    // struct cpu *c = mycpu();
+    // c->proc = p;
+    
+    // extern char user_vector[];
+    // w_stvec((uint64)TRAMPOLINE + ((uint64)user_vector - (uint64)trampoline));
+    // context_t dummy = {0};
+    // swtch(&dummy, &p->ctx);
+
+    // panic("unexpected return from swtch");
 }
 
 // 进程复制
 // UNUSED -> RUNNABLE
 int proc_fork()
 {
-    int i, pid;
+    int  pid;
     struct proc *np;
     struct proc *p = myproc();
 
@@ -331,6 +345,8 @@ int proc_fork()
     spinlock_release(&wait_lock);
     spinlock_acquire(&np->lk);
     np->state = RUNNABLE;
+    np->ustack_pages = p->ustack_pages;
+    np->heap_top = p->heap_top;
     spinlock_release(&np->lk);
     return pid;
 }
@@ -348,35 +364,34 @@ void proc_yield()
 int proc_wait(uint64 addr)
 {
     struct proc *pp;
-    int havekids, pid;
+    int havekids, exit_state;
     struct proc *p = myproc();
 
     spinlock_acquire(&wait_lock);
-
     for(;;)
     {
         havekids = 0;
+        
         for(pp = procs;pp<&procs[NPROC];pp++)
         {
             if(pp->parent == p)
             {
+               
                 spinlock_acquire(&pp->lk);
                 havekids = 1;
                 if(pp->state == ZOMBIE)
                 {
                     // found one
-                    pid = pp->pid;
+                    exit_state = pp->exit_state;
                     if(addr != 0  )
                     {
-                        spinlock_release(&pp->lk);
-                        spinlock_release(&wait_lock);
-                        return -1;
+                        uvm_copyout(p->pgtbl, addr, (uint64)&pp->exit_state, sizeof(pp->exit_state));
                     }
-                    uvm_copyout(p->pgtbl, addr, (uint64)&pp->exit_state, sizeof(pp->exit_state));
+                   
                     proc_free(pp);
                     spinlock_release(&pp->lk);
                     spinlock_release(&wait_lock);
-                    return pid;
+                    return exit_state;
                 }
                 spinlock_release(&pp->lk);
             }
@@ -395,22 +410,47 @@ int proc_wait(uint64 addr)
 // 父进程退出，子进程认proczero做父，因为它永不退出
 static void proc_reparent(proc_t* parent)
 {
-
-}
-
-// 唤醒一个进程
-static void proc_wakeup_one(proc_t* p)
-{
-    assert(spinlock_holding(&p->lk), "proc_wakeup_one: lock");
-    if(p->state == SLEEPING && p->sleep_space == p) {
-        p->state = RUNNABLE;
+    struct proc *pp;
+    for(pp = procs;pp<&procs[NPROC];pp++)
+    {
+       
+        if(pp->parent == parent)
+        {
+            pp->parent = &proczero;
+            proc_wakeup_one(&proczero);
+        }
+       
     }
 }
+
+
 
 // 进程退出
 void proc_exit(int exit_state)
 {
+    struct proc *p = myproc();
 
+    if(p==&proczero)
+        panic("proc_exit: proczero");
+    
+    //file system related TBD...
+
+    spinlock_acquire(&wait_lock);
+
+    proc_reparent(p);//父进程退出,子进程认proczero为父进程
+
+    spinlock_acquire(&p->parent->lk);
+    proc_wakeup_one(p->parent);//子进程退出,唤醒父进程
+    spinlock_release(&p->parent->lk);
+
+    
+    spinlock_acquire(&p->lk);
+    p->exit_state = exit_state;
+    p->state = ZOMBIE;
+    spinlock_release(&wait_lock);
+    
+    proc_sched();
+    panic("proc_exit: zombie exit");
 }
 
 // 进程切换到调度器
@@ -429,6 +469,7 @@ void proc_sched()
     if(intr_get())
         panic("proc_sched: interruptible");
     
+   // printf("proc_sched: switch from pid %d to scheduler\n", p->pid);
     origin = mycpu()->origin;
     swtch(&p->ctx, &mycpu()->ctx);
     mycpu()->origin = origin;
@@ -437,7 +478,28 @@ void proc_sched()
 // 调度器
 void proc_scheduler()
 {
+    
+    struct proc *p;
+    struct cpu *c = mycpu();
+    c->proc = 0;
 
+    for(;;)
+    {
+       intr_on();
+        //printf("proc_scheduler: start\n");
+        for(p=procs;p<&procs[NPROC];p++)
+        {
+            spinlock_acquire(&p->lk);
+            if(p->state == RUNNABLE)
+            {
+                p->state = RUNNING;
+                c->proc = p;
+                swtch(&c->ctx, &p->ctx);
+                c->proc = 0;
+            }
+            spinlock_release(&p->lk);
+        }
+    }
 }
 
 // 进程睡眠在sleep_space
@@ -460,5 +522,14 @@ void proc_sleep(void* sleep_space, spinlock_t* lk)
 // 唤醒所有在sleep_space沉睡的进程
 void proc_wakeup(void* sleep_space)
 {
-
+    struct proc *p;
+    for(p = procs; p < &procs[NPROC]; p++) {
+       if(p!=myproc()) {
+            spinlock_acquire(&p->lk);
+            if(p->state == SLEEPING && p->sleep_space == sleep_space) {
+                p->state = RUNNABLE;
+            }
+            spinlock_release(&p->lk);
+       }
+    }
 }
