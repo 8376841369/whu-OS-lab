@@ -176,7 +176,7 @@ uint64 sys_wait()
 // int exit_state
 uint64 sys_exit()
 {
-    printf("sys_exit called\n");
+    // printf("sys_exit called\n");
     int n;
     arg_uint32(0, (uint32*)&n);
     proc_exit(n);

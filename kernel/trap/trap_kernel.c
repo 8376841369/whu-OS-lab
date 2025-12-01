@@ -117,6 +117,7 @@ void trap_kernel_handler()
 
     int trap_id = scause & 0xf; 
     int is_interrupt = (scause >> 63) & 1;
+    int need_yield = 0; 
     // 中断异常处理核心逻辑
     if(is_interrupt)
     {
@@ -124,15 +125,22 @@ void trap_kernel_handler()
         {
         case 5:
             timer_interrupt_handler();    // 里面会续期: stimecmp = time + INTERVAL
-            
-            return;
+            if(myproc()!=0&&myproc()->state==RUNNING)
+                need_yield = 1;
+            break;
         case 9:
             
             external_interrupt_handler();
-            return;
+            break;
         
         default:
             break;
         }
     }
+    if(need_yield)
+    {
+        proc_yield();
+    }
+    w_sepc(sepc);
+    w_sstatus(sstatus);
 }

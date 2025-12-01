@@ -19,72 +19,76 @@ extern char kernel_vector[];   // 内核态trap处理流程
 extern char* interrupt_info[16]; // 中断错误信息
 extern char* exception_info[16]; // 异常错误信息
 
-// 在user_vector()里面调用
-// 用户态trap处理的核心逻辑
+// 在 user_vector() 里面调用
+// 用户态 trap 处理的核心逻辑
 void trap_user_handler()
 {
+    // 先切到内核的 trap 向量
     w_stvec((uint64)kernel_vector);
 
-    uint64 sepc = r_sepc();          // 记录了发生异常时的pc值
-    uint64 sstatus = r_sstatus();    // 与特权模式和中断相关的状态信息
-    uint64 scause = r_scause();      // 引发trap的原因
-    uint64 stval = r_stval();        // 发生trap时保存的附加信息(不同trap不一样)
-    proc_t* p = myproc();
-     
-    // 确认trap来自U-mode
-    assert((sstatus & SSTATUS_SPP) == 0, "trap_user_handler: not from u-mode");
-    int trap_id = scause & 0xf; 
-    int is_interrupt = (scause >> 63) & 1;
-   
-    // printf("trap from user mode: cause=%d  is_interrupt=%d stval=0x%lx sepc=0x%lx cpu=%d\n",
-    //        scause,
-    //        is_interrupt,
-    //        stval,
-    //        sepc,
-    //        r_tp()
-    //        );
+    uint64 sepc    = r_sepc();       // 发生异常时的 pc
+    uint64 sstatus = r_sstatus();    // 特权模式和中断相关状态
+    uint64 scause  = r_scause();     // trap 原因
+    uint64 stval   = r_stval();      // trap 附加信息
+    proc_t *p      = myproc();
 
-    // 中断异常处理核心逻辑
-    if(is_interrupt)
+    // 确认 trap 来自 U-mode
+    assert((sstatus & SSTATUS_SPP) == 0, "trap_user_handler: not from u-mode");
+
+    int trap_id      = scause & 0xf;
+    int is_interrupt = (scause >> 63) & 1;
+
+    if (is_interrupt)
     {
         switch (trap_id)
         {
         case 5:
-            timer_interrupt_handler();    // 里面会续期: stimecmp = time + INTERVAL
-            goto RETURN_TO_USER;
-            
+            // S-mode timer interrupt
+            timer_interrupt_handler();  // 里面续期 stimecmp = time + INTERVAL
+
+            // 仿照 xv6：如果当前有 RUNNING 的进程，就让出 CPU
+            if (p != 0 && p->state == RUNNING) {
+                proc_yield();
+            }
+            break;
+
         case 9:
+            // 外部中断（PLIC）
             external_interrupt_handler();
-            goto RETURN_TO_USER;
-            
+            break;
+
         default:
-           goto RETURN_TO_USER;
+            // 其它中断先简单打个 log
+            // printf("user interrupt: scause=%lx stval=%lx sepc=%lx\n", scause, stval, sepc);
+            break;
+        }
+    }
+    else
+    {
+        // 同步异常（不含 syscall）
+        switch (trap_id)
+        {
+        case 8: // syscall
+            // 先更新 epc，防止重复执行 ecall 指令
+            p->tf->epc = sepc + 4;
+
+            intr_on();   // 允许在 syscall 中被中断
+            syscall();   // 处理系统调用
+            break;
+
+        default:
+            // 这里可以选择 kill 进程 / 打 log 等
+            // printf("user exception: scause=%lx stval=%lx sepc=%lx\n", scause, stval, sepc);
+            // proc_exit(-1); // 若你有类似接口
+            break;
         }
     }
 
-    // 其他异常处理
-    switch (trap_id)
-    {
-    case 8:// syscall
-        // 先更新pc，防止重复执行syscall指令
-        p->tf->epc = sepc + 4;
-        intr_on(); // 允许中断
-        syscall();
-      
-        goto RETURN_TO_USER;
-       
-    
-    default:
-        goto RETURN_TO_USER;
-          
-    }
-RETURN_TO_USER:
-    // 统一的回用户态收尾：调用 trap_user_return() 完成：
+    // 统一的回用户态收尾：
     //   - stvec 切回 user_vector（高地址别名）
     //   - 清 SPP=0，置 SPIE=1
     //   - 跳 trampoline.user_return(TRAPFRAME, satp) -> sret
     trap_user_return();
-
 }
 
 // 调用user_return()

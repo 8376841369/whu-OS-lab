@@ -355,7 +355,14 @@ int proc_fork()
 // RUNNING -> RUNNABLE
 void proc_yield()
 {
+    proc_t *p = myproc();
 
+    spinlock_acquire(&p->lk);
+    p->state = RUNNABLE;
+    proc_sched();
+    spinlock_release(&p->lk);
+
+    
 }
 
 // 等待一个子进程进入 ZOMBIE 状态
@@ -401,7 +408,6 @@ int proc_wait(uint64 addr)
             spinlock_release(&wait_lock);
             return -1;
         }
-        //还差sleep没有完成
         proc_sleep(p, &wait_lock);
     }
 
@@ -469,7 +475,6 @@ void proc_sched()
     if(intr_get())
         panic("proc_sched: interruptible");
     
-   // printf("proc_sched: switch from pid %d to scheduler\n", p->pid);
     origin = mycpu()->origin;
     swtch(&p->ctx, &mycpu()->ctx);
     mycpu()->origin = origin;
@@ -514,7 +519,7 @@ void proc_sleep(void* sleep_space, spinlock_t* lk)
 
     proc_sched();
 
-    p->sleep_space = 0;
+    p->sleep_space = 0;// 唤醒后清空sleep_space
     spinlock_release(&p->lk);
     spinlock_acquire(lk);
 }
