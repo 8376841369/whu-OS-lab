@@ -128,4 +128,5 @@ void     proc_sleep(void* sleep_space, spinlock_t* lk);// 进程睡眠
 void     proc_wakeup(void* sleep_space);               // 进程唤醒
 void     proc_sched();                                 // 进程切换到调度器
 void     proc_scheduler() __attribute__((noreturn));                         // 调度器
+void      either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 #endif

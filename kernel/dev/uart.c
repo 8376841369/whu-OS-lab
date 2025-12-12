@@ -40,7 +40,7 @@ void uart_init(void)
   // 进入设置比特率的模式
   WriteReg(LCR, LCR_BAUD_LATCH);
 
-  // 设置比特率的低位和高位，最终设置为38.4K
+  // 设置比特率的低位和高位, 最终设置为38.4K
   WriteReg(0, 0x03);
   WriteReg(1, 0x00);
 
@@ -91,4 +91,3 @@ void uart_intr(void)
     uart_putc_sync(c);
   }
 }
-

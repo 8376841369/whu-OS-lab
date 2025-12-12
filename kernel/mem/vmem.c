@@ -46,6 +46,10 @@ void   vm_print(pgtbl_t pgtbl)
 // 返回va对应的pte指针, 如果alloc为true, 则在需要时分配页表
 pte_t* vm_getpte(pgtbl_t root, uint64 va, bool alloc)
 {
+    if(root == NULL)
+    {
+        root = kernel_pgtbl;//如果传入的根页表为空，则使用内核页表
+    }
     if(va>=VA_MAX)//如果va超过了虚拟地址范围
     {
         panic("vitual address out of range");

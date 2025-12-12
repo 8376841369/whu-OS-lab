@@ -11,14 +11,17 @@
 #include "fs/buf.h"
 #include "lib/lock.h"
 #include "lib/print.h"
-#include "lib/str.h"
+#include "lib/string.h"
 #include "mem/vmem.h"
 #include "proc/proc.h"
 #include "riscv.h"
 #include "memlayout.h"
 
+extern pgtbl_t kernel_pgtbl;
+
 // the address of virtio mmio register r.
 #define R(r) ((volatile uint32 *)(VIRTIO_BASE + (r)))
+#define ALIGN_DOWN(x, a) ((x) & ~((a) - 1))
 
 static struct disk
 {
@@ -249,13 +252,19 @@ void virtio_disk_rw(buf_t *b, bool write)
     disk.avail[1] = disk.avail[1] + 1;
 
     *R(VIRTIO_MMIO_QUEUE_NOTIFY) = 0; // value is queue number
+    //debug!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    printf("[vrw] status=%u int_status=%u used.id=%u\n",
+       *R(VIRTIO_MMIO_STATUS),
+       *R(VIRTIO_MMIO_INTERRUPT_STATUS),
+       disk.used->id);
 
     // Wait for virtio_disk_intr() to say request has finished.
+    printf("1");
     while (b->disk == true)
     {
         proc_sleep(b, &disk.vdisk_lock);
     }
-
+    printf("2");
     disk.info[idx[0]].b = 0;
     free_chain(idx[0]);
 

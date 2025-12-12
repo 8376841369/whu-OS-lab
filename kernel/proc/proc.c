@@ -29,7 +29,7 @@ static proc_t procs[NPROC];
 
 
 // 第一个进程的指针
-//static proc_t* proczero;
+static proc_t* proczero;
 
 // 全局的pid和保护它的锁 
 static int global_pid = 1;
@@ -186,9 +186,6 @@ void proc_init()
 
 
 
-// 第一个进程
-static proc_t proczero;
-
 
 
 // 唤醒一个进程
@@ -236,23 +233,6 @@ pgtbl_t proc_pgtbl_init(uint64 trapframe)
 */
 void proc_make_first()
 {   
-    // uint64 page;//data+code
-    // proc_t* p = &proczero;
-    // memset(p,0,sizeof(*p));
-    
-    // // pid 设置
-    // p->pid = 1;
-    // void * tf_kva =  pmem_alloc(true);
-    // p->tf = (trapframe_t*)tf_kva;
-    // if(!tf_kva)
-    // {
-    //     panic("proc_make_first: pmem_alloc for trapframe failed");
-    // }
-    // memset(tf_kva,0,PAGESIZE);
-    // uint64 tf_pa = kva2pa(tf_kva);
-    // // pagetable 初始化
-    // pgtbl_t upgt = proc_pgtbl_init(tf_pa);
-    // p->pgtbl = upgt;
     struct proc *p;
     p = proc_alloc();
   
@@ -261,7 +241,7 @@ void proc_make_first()
         panic("proc_make_first: proc_alloc failed");
     }
     p->parent = 0; // 第一个进程没有父进程
-    proczero = *p; // 复制到静态变量中
+    proczero = p; // 复制到静态变量中
     // ustack 映射 + 设置 ustack_pages 
     void * ustack_kva = pmem_alloc(false);
     if(!ustack_kva)
@@ -302,6 +282,8 @@ void proc_make_first()
    
     
     p->state = RUNNABLE;
+    struct cpu *c = mycpu();
+    c->proc = p;
     spinlock_release(&p->lk);
 
 //    //dummy switch
@@ -422,8 +404,8 @@ static void proc_reparent(proc_t* parent)
        
         if(pp->parent == parent)
         {
-            pp->parent = &proczero;
-            proc_wakeup_one(&proczero);
+            pp->parent = proczero;
+            proc_wakeup_one(proczero);
         }
        
     }
@@ -436,7 +418,7 @@ void proc_exit(int exit_state)
 {
     struct proc *p = myproc();
 
-    if(p==&proczero)
+    if(p==proczero)
         panic("proc_exit: proczero");
     
     //file system related TBD...
@@ -536,5 +518,16 @@ void proc_wakeup(void* sleep_space)
             }
             spinlock_release(&p->lk);
        }
+    }
+}
+
+void 
+either_copyout(int user_dst, uint64 dst, void *src, uint64 len)
+{
+    proc_t *p = myproc();
+    if(user_dst) {
+        uvm_copyout(p->pgtbl, dst, (uint64)src, len);
+    } else {
+        memmove((void *)dst, src, len);
     }
 }

@@ -3,7 +3,7 @@
 #include "fs/bitmap.h"
 #include "fs/inode.h"
 #include "fs/dir.h"
-#include "lib/str.h"
+#include "lib/string.h"
 #include "lib/print.h"
 
 // 超级块在内存的副本
@@ -31,9 +31,10 @@ static void sb_print()
 void fs_init()
 {
     buf_init();
-
+    
     buf_t* buf; 
     buf = buf_read(SB_BLOCK_NUM);
+    
     memmove(&sb, buf->data, sizeof(sb));
     assert(sb.magic == FS_MAGIC, "fs_init: magic");
     assert(sb.block_size == BLOCK_SIZE, "fs_init: block size");

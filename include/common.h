@@ -17,11 +17,16 @@ typedef unsigned long          uintptr_t;
 typedef unsigned long long         reg; 
 typedef enum {false = 0, true = 1} bool;
 
+#define container_of(ptr, type, member) \
+    ((type *)((char *)(ptr) - (unsigned long)(&((type *)0)->member)))
+
+
 #ifndef NULL
 #define NULL ((void*)0)
 #endif
 
 #define NCPU 2
 #define PAGESIZE 4096
+#define BLOCK_NUM_UNUSED 0xFFFFFFFF
 
 #endif

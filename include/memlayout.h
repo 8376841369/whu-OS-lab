@@ -48,4 +48,8 @@
 //   TRAPFRAME (p->trapframe, used by the trampoline)
 //   TRAMPOLINE (the same page as in the kernel)
 #define TRAPFRAME (TRAMPOLINE - PGSIZE)
+
+// Virtio MMIO base
+#define VIRTIO_BASE 0x10001000
+#define VIRTIO_IRQ 1
 #endif

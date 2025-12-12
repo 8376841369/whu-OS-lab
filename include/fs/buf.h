@@ -1,6 +1,7 @@
 #ifndef __BLOCK_BUF__
 #define __BLOCK_BUF__
 
+#include "fs/fs.h"
 #include "lib/lock.h"
 
 typedef struct buf {
@@ -9,7 +10,6 @@ typedef struct buf {
         block_num + buf_ref 由 lk_buf_cache保护
     */
     sleeplock_t slk;
-
     uint32 block_num; // 对应的磁盘block编号
     uint8  data[BLOCK_SIZE]; // block数据的缓存
     

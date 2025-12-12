@@ -3,6 +3,8 @@
 
 #include "common.h"
 
+#define BLOCK_SIZE       1024
+
 // 超级块
 typedef struct super_block
 {
