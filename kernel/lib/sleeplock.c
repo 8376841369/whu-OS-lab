@@ -17,6 +17,7 @@ void
 acquiresleep(struct sleeplock *lk)
 {
   spinlock_acquire(&lk->lk);
+  
 
   while (lk->locked) {
     proc_sleep(lk, &lk->lk);

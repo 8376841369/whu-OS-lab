@@ -218,7 +218,7 @@ void virtio_disk_rw(buf_t *b, bool write)
     uint64 addr = ALIGN_DOWN((uint64)&buf0, PGSIZE);
     uint64 off  = ((uint64)&buf0) % PGSIZE;
 
-    pte_t* pte = vm_getpte(NULL, addr, false);
+    pte_t* pte = vm_getpte(kernel_pgtbl, addr, false);
     disk.desc[idx[0]].addr = (uint64)PTE_TO_PA(*pte) + off;
     disk.desc[idx[0]].len = sizeof(buf0);
     disk.desc[idx[0]].flags = VRING_DESC_F_NEXT;
@@ -229,7 +229,7 @@ void virtio_disk_rw(buf_t *b, bool write)
     if (write)
         disk.desc[idx[1]].flags = 0; // device reads b->data
     else
-        disk.desc[idx[1]].flags = VRING_DESC_F_WRITE; // device writes b->data
+        disk.desc[idx[1] ].flags = VRING_DESC_F_WRITE; // device writes b->data
     disk.desc[idx[1]].flags |= VRING_DESC_F_NEXT;
     disk.desc[idx[1]].next = idx[2];
 
@@ -252,19 +252,15 @@ void virtio_disk_rw(buf_t *b, bool write)
     disk.avail[1] = disk.avail[1] + 1;
 
     *R(VIRTIO_MMIO_QUEUE_NOTIFY) = 0; // value is queue number
-    //debug!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    printf("[vrw] status=%u int_status=%u used.id=%u\n",
-       *R(VIRTIO_MMIO_STATUS),
-       *R(VIRTIO_MMIO_INTERRUPT_STATUS),
-       disk.used->id);
+    
 
     // Wait for virtio_disk_intr() to say request has finished.
-    printf("1");
+   
     while (b->disk == true)
     {
         proc_sleep(b, &disk.vdisk_lock);
     }
-    printf("2");
+   
     disk.info[idx[0]].b = 0;
     free_chain(idx[0]);
 

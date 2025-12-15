@@ -201,3 +201,9 @@ uint64 sys_sleep()
     spinlock_release(&sys_timer.lk);
     return 0;
 }
+
+uint64 sys_fs_init(void)
+{
+    fs_init();
+    return 0;
+}

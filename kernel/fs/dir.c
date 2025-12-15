@@ -347,7 +347,37 @@ uint32 dir_get_entries(inode_t* pip, uint32 len, void* dst, bool user)
 // 成功返回0 失败返回-1
 uint32 dir_change(char* path)
 {
+    if (path == NULL)
+        return (uint32)-1;
 
+    // 1) 解析路径得到目标 inode（通常返回 ref++ 的 inode）
+    inode_t* ip = path_to_inode(path);
+    if (ip == NULL)
+        return (uint32)-1;
+
+    // 2) 必须是目录
+    inode_lock(ip);
+    if (ip->type != FT_DIR) {
+        inode_unlock_free(ip);   // 解锁 + ref--
+        return (uint32)-1;
+    }
+    inode_unlock(ip);
+
+    // 3) 替换当前进程 cwd
+    proc_t* p = myproc();        // 你项目里的进程结构名可能不同
+    inode_t* old = p->cwd;
+
+    // 关键：cwd 要长期持有引用。
+    // 如果 path_to_inode() 已经让 ip->ref++ 并且你不会释放 ip，那可以直接赋值；
+    // 更稳妥的写法是再 dup 一次，然后释放 path_to_inode 得到的那份引用。
+    p->cwd = inode_dup(ip);      // p->cwd ref++
+
+    inode_free(ip);              // 释放 path_to_inode() 那份引用（不解锁，因为已 unlock）
+    
+    if (old)
+        inode_free(old);         // 旧 cwd ref--
+
+    return 0;
 }
 
 // 输出一个目录下的所有有效目录项

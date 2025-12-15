@@ -7,6 +7,7 @@
 #include "memlayout.h"
 #include "riscv.h"
 #include "proc/proc.h"
+#include "fs/fs.h"
 
 // in trampoline.S
 extern char trampoline[];
@@ -56,9 +57,15 @@ static int alloc_pid()
 // 释放锁 + 调用 trap_user_return
 static void fork_return()
 {   
+    static int first = 1;
     // 由于调度器中上了锁，所以这里需要解锁
     proc_t* p = myproc();
     spinlock_release(&p->lk);
+    if(first)
+    {
+        first = 0;
+        fs_init();
+    }
     trap_user_return();
 }
 
@@ -498,7 +505,7 @@ void proc_sleep(void* sleep_space, spinlock_t* lk)
 
     p->sleep_space = sleep_space;
     p->state = SLEEPING;
-
+   
     proc_sched();
 
     p->sleep_space = 0;// 唤醒后清空sleep_space

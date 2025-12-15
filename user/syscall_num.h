@@ -5,3 +5,4 @@
 #define SYS_wait 9
 #define SYS_exit 10
 #define SYS_sleep 11
+#define SYS_fs 12

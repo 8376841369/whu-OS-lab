@@ -106,7 +106,7 @@ buf_t* buf_read(uint32 block_num)
             // 这里不改 block_num，先记住旧值，后面要用它写回
             spinlock_release(&lk_buf_cache);
             // 独占这个 buf 的睡眠锁
-             printf("slk.locked=%d block=%d buf=%p\n", b->slk.locked, block_num, b);
+
             acquiresleep(&b->slk);
             
             // 如果这个 buf 以前装过某个块（不是 UNUSED），先把旧块写回磁盘

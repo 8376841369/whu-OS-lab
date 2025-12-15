@@ -14,5 +14,6 @@ uint64 sys_fork();
 uint64 sys_wait();
 uint64 sys_exit();
 uint64 sys_sleep();
+uint64 sys_fs_init();
 
 #endif

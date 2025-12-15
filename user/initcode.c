@@ -10,7 +10,8 @@
 char  *str2;
 
 int main()
-{
+{   
+    
     syscall(SYS_print, "\nuser begin\n");
 
     

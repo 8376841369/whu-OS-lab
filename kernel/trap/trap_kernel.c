@@ -84,8 +84,9 @@ void external_interrupt_handler()
         uart_intr();
         break;
     case VIRTIO_IRQ:        // ★ 磁盘中断
-        printf("kernel virtio disk interrupt\n");
+       
         virtio_disk_intr(); // ★ 必须：完成请求、清 b->disk、wakeup(b)、回收desc
+        break;
     default:
         printf("unexpected PLIC irq=%d on hart=%d\n", irq, hart);
         break;
@@ -100,7 +101,7 @@ void timer_interrupt_handler()
     if(mycpuid()==0)
     {
          timer_update();
-         printf("time %d\n", timer_get_ticks());
+        //  printf("time %d\n", timer_get_ticks());
     }
     // 设置下一个时钟中断时间
     w_stimecmp(r_time() + INTERVAL);

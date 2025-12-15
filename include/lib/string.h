@@ -12,4 +12,6 @@ void* memmove(void *dst, const void *src, uint64 n);
 unsigned long kstrlen(const char *s);
 
 int strncmp(const char *s1, const char *s2, uint64 n);
+
+int memcmp(const void *s1, const void *s2, uint64 n);
 #endif

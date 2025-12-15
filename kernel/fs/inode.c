@@ -340,10 +340,10 @@ void inode_lock(inode_t* ip)
         inode_rw(ip, false);
 
         // 这里可以加一个防御性检查：如果磁盘上是未使用 inode，就炸掉
-        if (ip->type == FT_UNUSED) {
-            releasesleep(&ip->slk);
-            panic("inode_lock: no such inode on disk");
-        }
+        // if (ip->type == FT_UNUSED) {
+        //     releasesleep(&ip->slk);
+        //     panic("inode_lock: no such inode on disk");
+        // }
         // inode_rw 里已经会把 ip->valid 置为 true
     }
 }

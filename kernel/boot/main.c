@@ -42,7 +42,6 @@ int main(void)
          
        proc_make_first(); 
        virtio_disk_init();  
-       fs_init();
        proc_scheduler(); 
 
         // 心跳观测循环：每 10 tick 打印一次

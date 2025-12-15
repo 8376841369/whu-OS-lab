@@ -71,3 +71,17 @@ int strncmp(const char *s1, const char *s2, uint64 n) {
     // 前 n 个字符都一样
     return 0;
 }
+
+int memcmp(const void *s1, const void *s2, uint64 n) {
+    const unsigned char *p1 = (const unsigned char *)s1;
+    const unsigned char *p2 = (const unsigned char *)s2;
+
+    for (uint64 i = 0; i < n; ++i) {
+        unsigned char a = p1[i];
+        unsigned char b = p2[i];
+        if (a != b) {
+            return (int)a - (int)b;
+        }
+    }
+    return 0;
+}
