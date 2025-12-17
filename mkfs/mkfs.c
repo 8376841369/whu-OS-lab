@@ -278,6 +278,20 @@ static unsigned int inode_locate_block(inode_disk_t* ip, unsigned int bn)
 
     return 0;
 }
+// #define INODE_NUM_UNUSED 0xFFFF
+
+// static void dirblock_init(unsigned int dir_block)
+// {
+//     char buf[BLOCK_SIZE];
+//     dirent_t *ents = (dirent_t *)buf;
+//     unsigned int max_n = BLOCK_SIZE / sizeof(dirent_t);
+
+//     for (unsigned int i = 0; i < max_n; i++) {
+//         ents[i].inode_num = xshort(INODE_NUM_UNUSED);   // 关键：写 0xFFFF
+//         memset(ents[i].name, 0, sizeof(ents[i].name));
+//     }
+//     block_write(dir_block, buf);
+// }
 
 // main函数
 int main(int argc, char* argv[])
@@ -323,7 +337,8 @@ int main(int argc, char* argv[])
         while(1);
     }
     inode_create(&rooti, root_inum, FT_DIR);
-
+    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   // dirblock_init(rooti_block);      
     // 添加 . 和 ..
     unsigned int offset = 0;
     offset = dirent_create(rooti_block, offset, ".\0", root_inum);

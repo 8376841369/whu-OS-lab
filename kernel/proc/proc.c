@@ -8,6 +8,7 @@
 #include "riscv.h"
 #include "proc/proc.h"
 #include "fs/fs.h"
+#include "fs/dir.h"
 
 // in trampoline.S
 extern char trampoline[];
@@ -287,7 +288,7 @@ void proc_make_first()
     p->tf->kernel_trap = (uint64)trap_user_handler;
 
    
-    
+    p->cwd = path_to_inode("/");// 设置当前工作目录为根目录
     p->state = RUNNABLE;
     struct cpu *c = mycpu();
     c->proc = p;

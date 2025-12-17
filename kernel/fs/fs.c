@@ -49,47 +49,42 @@ void fs_init()
     sb_print();
 
     inode_init();
-    uint32 ret = 0;
+    // 获取根目录
+inode_t* ip = inode_alloc(INODE_ROOT);
+inode_lock(ip);
 
-    for (int i = 0; i < BLOCK_SIZE * 2; i++) {
-        str[i] = i;  // 或者 str[i] = i; 也行
-    }
+// 第一次查看
+dir_print(ip);
 
-    // 创建新的inode
-    inode_t *nip = inode_create(FT_FILE, 0, 0);
-    inode_lock(nip);
+// add entry
+dir_add_entry(ip, 1, "a.txt");
+dir_add_entry(ip, 2, "b.txt");
+dir_add_entry(ip, 3, "c.txt");
 
-    // 第一次查看
-    inode_print(nip);
+// 第二次查看
+dir_print(ip);
 
-    // 第一次写入
-    ret = inode_write_data(nip, 0, BLOCK_SIZE / 2, str, false);
-    assert(ret == BLOCK_SIZE / 2, "inode_write_data: fail");
+// 第一次检查
+assert(dir_search_entry(ip, "b.txt") == 2, "error-1");
 
-    // 第二次写入
-    ret = inode_write_data(
-        nip,
-        BLOCK_SIZE / 2,
-        BLOCK_SIZE + BLOCK_SIZE / 2,
-        str + BLOCK_SIZE / 2,
-        false
-    );
-    assert(ret == BLOCK_SIZE + BLOCK_SIZE / 2, "inode_write_data: fail");
+// delete entry
+dir_delete_entry(ip, "a.txt");
 
-    // 一次读取
-    ret = inode_read_data(nip, 0, BLOCK_SIZE * 2, tmp, false);
-    assert(ret == BLOCK_SIZE * 2, "inode_read_data: fail");
+// 第三次查看
+dir_print(ip);
 
-    // 第二次查看
-    inode_print(nip);
+// add entry
+dir_add_entry(ip, 1, "d.txt");
 
-    inode_unlock_free(nip);
+// 第四次查看
+dir_print(ip);
 
-    // 测试
-    if (blockcmp(tmp, str) == true)
-        printf("success");
-    else
-        printf("fail");
+// 第二次检查：重复名字应失败（返回 BLOCK_SIZE）
+assert(dir_add_entry(ip, 4, "d.txt") == BLOCK_SIZE, "error-2");
 
-    while (1) ;
+inode_unlock(ip);
+
+printf("over");
+while (1);
+
 }

@@ -3,7 +3,7 @@
 
 #include "lib/lock.h"
 
-#define INODE_ROOT       0                              // 根节点的inode_num
+#define INODE_ROOT       0                             // 根节点的inode_num
 #define INODE_DISK_SIZE  64                             // 磁盘里inode的大小
 #define INODE_PER_BLOCK  (BLOCK_SIZE / INODE_DISK_SIZE) // 每个block里的inode数量
 
