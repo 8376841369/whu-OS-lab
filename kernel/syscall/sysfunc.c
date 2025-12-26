@@ -135,7 +135,7 @@ uint64 sys_copyinstr()
 // uint64 addr
 uint64 sys_print()
 {
-    //printf("sys_print called:");
+    
     uint64 addr;
    
     arg_uint64(0,&addr);
@@ -202,8 +202,13 @@ uint64 sys_sleep()
     return 0;
 }
 
-uint64 sys_fs_init(void)
+// 执行一个ELF文件
+// char* path
+// char** argv
+// 成功返回argc 失败返回-1
+uint64 sys_exec()
 {
-    fs_init();
-    return 0;
+    char path[DIR_PATH_LEN];    // 文件路径
+    char* argv[ELF_MAXARGS];    // 参数指针数组
+
 }

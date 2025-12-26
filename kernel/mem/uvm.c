@@ -185,7 +185,33 @@ uint64 uvm_heap_ungrow(pgtbl_t pgtbl, uint64 heap_top, uint32 len)
 // 注意: src dst 不一定是 page-aligned
 void uvm_copyin(pgtbl_t pgtbl, uint64 dst, uint64 src, uint32 len)
 {
+     uint64 n, va0, pa0;
+    char *dstp = (char *)dst;
 
+    while (len > 0) {
+        va0 = PG_ROUND_DOWN(src);
+
+        pte_t *pte = vm_getpte(pgtbl, va0, false);
+        if (pte == NULL || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0) {
+            panic("uvm_copyin: invalid user va");
+        }
+
+        pa0 = PTE2PA(*pte);
+        if (pa0 == 0) {
+            panic("uvm_copyin: pa0=0");
+        }
+
+        n = PAGESIZE - (src - va0);
+        if (n > len) n = len;
+
+        // 关键：pa -> kva
+        uint64 kva0 = (uint64)pa2kva(pa0);
+        memmove(dstp, (void *)(kva0 + (src - va0)), n);
+
+        len  -= n;
+        dstp += n;
+        src   = va0 + PAGESIZE;
+    }
 }
 
 // 内核态地址空间[src, src+len） 拷贝至 用户态地址空间[dst, dst+len)

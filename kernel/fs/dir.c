@@ -7,6 +7,10 @@
 #include "lib/print.h"
 #include "proc/cpu.h"
 
+#define DBG(fmt, ...) \
+  printf("[DBG %s:%d] " fmt "\n", __func__, __LINE__, ##__VA_ARGS__)
+
+
 // 对目录文件的简化性假设: 每个目录文件只包括一个block
 // 也就是每个目录下最多 BLOCK_SIZE / sizeof(dirent_t) = 32 个目录项
 
@@ -480,11 +484,12 @@ static inode_t* search_inode(char* path, char* name, bool find_parent)
     if (path == NULL || *path == 0)
         return NULL;
     
-
+    
     inode_t* ip;
 
     if(path[0]=='/')
     {
+       
         ip = inode_alloc(INODE_ROOT);// 根目录inode
     }
     else
@@ -540,13 +545,15 @@ static inode_t* search_inode(char* path, char* name, bool find_parent)
         inode_free(ip);
         return NULL;
     }
-
     return ip; // 目标 inode（未上锁）
 }
+
+
 
 // 找到path对应的inode
 inode_t* path_to_inode(char* path)
 {
+    
     char name[DIR_NAME_LEN];
     return search_inode(path, name, false);
 }
@@ -558,73 +565,72 @@ inode_t* path_to_pinode(char* path, char* name)
     return search_inode(path, name, true);
 }
 
+
+
 // 如果path对应的inode存在则返回inode
 // 如果path对应的inode不存在则创建inode
 // 失败返回NULL
 inode_t* path_create_inode(char* path, uint16 type, uint16 major, uint16 minor)
 {
-    if (path == NULL || *path == 0)
+    if (path == NULL || *path == 0) {
         return NULL;
+    }
 
-    // 1) 先查 path 是否已经存在
-    inode_t* ip = path_to_inode(path);   // 等价于 search_inode(path, ..., false)
+    inode_t* ip = path_to_inode(path);
     if (ip != NULL) {
-        // 已存在：直接返回
-        return ip; // 未上锁
+        return ip;
     }
-    // 2) 不存在：先找到父目录 inode + 最后一个分量 name
+
     char name[DIR_NAME_LEN];
-    inode_t* pip = path_to_pinode(path, name);  // 等价于 search_inode(path, name, true)
-    if (pip == NULL) {
-        return NULL;
-    }
-    // name 为空说明 path 不合法（例如 "/" 或 "////"）
+    inode_t* pip = path_to_pinode(path, name);
+    if (pip == NULL) return NULL;
+
     if (name[0] == '\0') {
         inode_free(pip);
         return NULL;
     }
-    // 3) 锁住父目录，检查是否已经被别人创建（并发/重入防御）
+
     inode_lock(pip);
+
     if (pip->type != FT_DIR) {
+        DBG("pip not dir");
         inode_unlock_free(pip);
         return NULL;
     }
-    // 再次确认父目录下没有同名项
+
     uint16 exist = dir_search_entry(pip, name);
     if (exist != INODE_NUM_UNUSED) {
-        // 别人已经创建了：拿到它并返回
-        inode_t* eip = inode_alloc(exist);
         inode_unlock_free(pip);
+        inode_t* eip = inode_alloc(exist);
         return eip;
     }
-    // 4) 创建新 inode（返回未上锁、已ref的 inode）
+
     inode_t* nip = inode_create(type, major, minor);
     if (nip == NULL) {
         inode_unlock_free(pip);
         return NULL;
     }
-    // 5) 把新 inode 挂到父目录：添加目录项 name -> nip->inode_num
-    // dir_add_entry 要求持有 pip 锁（我们已经 inode_lock(pip)）
+
     uint32 off = dir_add_entry(pip, nip->inode_num, name);
     if (off == BLOCK_SIZE) {
-        // 添加失败：回滚创建的 inode
         inode_unlock_free(pip);
 
-        // 这里要销毁 nip：清 data + bitmap 回收 + inode bitmap 回收
-        // 你项目里如果 inode_destroy 是 static，不可见，可用 inode_lock + inode_free_data + 修改 bitmap 的方式回滚
         inode_lock(nip);
         nip->nlink = 0;
         inode_free_data(nip);
         inode_rw(nip, true);
         inode_unlock(nip);
 
-        // 最后把 inode bitmap 也释放掉
         bitmap_free_inode(nip->inode_num);
         inode_free(nip);
-
         return NULL;
     }
+
+    inode_unlock_free(pip);
+
+    return nip;
 }
+
 
 // 文件链接(目录不能被链接)
 // 本质是创建一个目录项, 这个目录项的inode_num是存在的而不用申请

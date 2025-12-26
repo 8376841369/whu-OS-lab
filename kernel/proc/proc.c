@@ -9,6 +9,8 @@
 #include "proc/proc.h"
 #include "fs/fs.h"
 #include "fs/dir.h"
+#include "fs/inode.h"
+#include "fs/file.h"
 
 // in trampoline.S
 extern char trampoline[];
@@ -288,22 +290,13 @@ void proc_make_first()
     p->tf->kernel_trap = (uint64)trap_user_handler;
 
    
-    p->cwd = path_to_inode("/");// 设置当前工作目录为根目录
+    
     p->state = RUNNABLE;
     struct cpu *c = mycpu();
     c->proc = p;
     spinlock_release(&p->lk);
-
-//    //dummy switch
-    // struct cpu *c = mycpu();
-    // c->proc = p;
+    p->cwd = path_to_inode("/");// 设置当前工作目录为根目录
     
-    // extern char user_vector[];
-    // w_stvec((uint64)TRAMPOLINE + ((uint64)user_vector - (uint64)trampoline));
-    // context_t dummy = {0};
-    // swtch(&dummy, &p->ctx);
-
-    // panic("unexpected return from swtch");
 }
 
 // 进程复制
@@ -313,7 +306,6 @@ int proc_fork()
     int  pid;
     struct proc *np;
     struct proc *p = myproc();
-
     if((np = proc_alloc()) == 0)
     {
         return -1;
@@ -327,6 +319,17 @@ int proc_fork()
     }
     *(np->tf) =*(p->tf);//复制trapframe
     np->tf->a0 = 0;//子进程返回值为0
+
+    for(int i = 0;i < FILE_PER_PROC;i++)
+    {
+        if(p->filelist[i])
+        {
+            np->filelist[i] = file_dup(p->filelist[i]);
+        }
+    }
+   
+    np->cwd = inode_dup(p->cwd);
+
     pid = np->pid;
     spinlock_release(&np->lk);
 
@@ -429,7 +432,17 @@ void proc_exit(int exit_state)
     if(p==proczero)
         panic("proc_exit: proczero");
     
+
     //file system related TBD...
+    for(int fd =0;fd<FILE_PER_PROC;fd++)
+    {
+        if(p->filelist[fd])
+        {
+            file_close(p->filelist[fd]);
+            p->filelist[fd] = 0;
+        }
+    }
+    inode_free(p->cwd);
 
     spinlock_acquire(&wait_lock);
 

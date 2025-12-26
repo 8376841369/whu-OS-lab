@@ -5,6 +5,8 @@
 #include "fs/dir.h"
 #include "lib/string.h"
 #include "lib/print.h"
+#include "proc/cpu.h"
+#include "fs/file.h"
 
 // 超级块在内存的副本
 super_block_t sb;
@@ -37,7 +39,7 @@ static bool blockcmp(const uint8 *a, const uint8 *b) {
 // 文件系统初始化
 void fs_init()
 {
-    buf_init();
+   
 
     buf_t *buf;
     buf = buf_read(SB_BLOCK_NUM);
@@ -47,44 +49,51 @@ void fs_init()
     assert(sb.block_size == BLOCK_SIZE, "fs_init: block size");
     buf_release(buf);
     sb_print();
+    proc_t *p = myproc();
+    file_t *con= file_create_dev("/console", DEV_CONSOLE, 0);
+    if(!con) panic("proc_make_first: file_create_dev for /console failed");
 
-    inode_init();
+    p->filelist[0] = file_dup(con); // stdin
+    p->filelist[1] = file_dup(con); // stdout
+    p->filelist[2] = file_dup(con); // stderr
+    file_close(con);
+   
     // 获取根目录
-inode_t* ip = inode_alloc(INODE_ROOT);
-inode_lock(ip);
+// inode_t* ip = inode_alloc(INODE_ROOT);
+// inode_lock(ip);
 
-// 第一次查看
-dir_print(ip);
+// // 第一次查看
+// dir_print(ip);
 
-// add entry
-dir_add_entry(ip, 1, "a.txt");
-dir_add_entry(ip, 2, "b.txt");
-dir_add_entry(ip, 3, "c.txt");
+// // add entry
+// dir_add_entry(ip, 1, "a.txt");
+// dir_add_entry(ip, 2, "b.txt");
+// dir_add_entry(ip, 3, "c.txt");
 
-// 第二次查看
-dir_print(ip);
+// // 第二次查看
+// dir_print(ip);
 
-// 第一次检查
-assert(dir_search_entry(ip, "b.txt") == 2, "error-1");
+// // 第一次检查
+// assert(dir_search_entry(ip, "b.txt") == 2, "error-1");
 
-// delete entry
-dir_delete_entry(ip, "a.txt");
+// // delete entry
+// dir_delete_entry(ip, "a.txt");
 
-// 第三次查看
-dir_print(ip);
+// // 第三次查看
+// dir_print(ip);
 
-// add entry
-dir_add_entry(ip, 1, "d.txt");
+// // add entry
+// dir_add_entry(ip, 1, "d.txt");
 
-// 第四次查看
-dir_print(ip);
+// // 第四次查看
+// dir_print(ip);
 
-// 第二次检查：重复名字应失败（返回 BLOCK_SIZE）
-assert(dir_add_entry(ip, 4, "d.txt") == BLOCK_SIZE, "error-2");
+// // 第二次检查：重复名字应失败（返回 BLOCK_SIZE）
+// assert(dir_add_entry(ip, 4, "d.txt") == BLOCK_SIZE, "error-2");
 
-inode_unlock(ip);
+// inode_unlock(ip);
 
-printf("over");
-while (1);
+// printf("over");
+// while (1);
 
 }

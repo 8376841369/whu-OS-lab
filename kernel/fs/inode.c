@@ -324,30 +324,37 @@ inode_t* inode_dup(inode_t* ip)
     return ip;
 }
 
-// 给inode上锁
-// 如果valid失效则从磁盘中读入
+// // 给inode上锁
+// // 如果valid失效则从磁盘中读入
+// void inode_lock(inode_t* ip)
+// {
+//     if (ip == NULL)
+//         panic("inode_lock: null ip");
+
+//     // 加这个 inode 自己的睡眠锁，保护 type/size/addrs/valid 等字段
+//     acquiresleep(&ip->slk);
+
+//     // 第一次使用或被 invalidate 后，需要从磁盘把元数据读入
+//     if (!ip->valid) {
+//         // 从磁盘 inode 表读出这个 inode 的元数据，写入 ip->type/size/addrs…
+//         inode_rw(ip, false);
+
+//         // 这里可以加一个防御性检查：如果磁盘上是未使用 inode，就炸掉
+//         // if (ip->type == FT_UNUSED) {
+//         //     releasesleep(&ip->slk);
+//         //     panic("inode_lock: no such inode on disk");
+//         // }
+//         // inode_rw 里已经会把 ip->valid 置为 true
+//     }
+// }
+
 void inode_lock(inode_t* ip)
 {
-    if (ip == NULL)
-        panic("inode_lock: null ip");
-
-    // 加这个 inode 自己的睡眠锁，保护 type/size/addrs/valid 等字段
     acquiresleep(&ip->slk);
-
-    // 第一次使用或被 invalidate 后，需要从磁盘把元数据读入
-    if (!ip->valid) {
-        // 从磁盘 inode 表读出这个 inode 的元数据，写入 ip->type/size/addrs…
+    if(!ip->valid){
         inode_rw(ip, false);
-
-        // 这里可以加一个防御性检查：如果磁盘上是未使用 inode，就炸掉
-        // if (ip->type == FT_UNUSED) {
-        //     releasesleep(&ip->slk);
-        //     panic("inode_lock: no such inode on disk");
-        // }
-        // inode_rw 里已经会把 ip->valid 置为 true
     }
 }
-
 // 给inode解锁
 void inode_unlock(inode_t* ip)
 {
@@ -355,7 +362,6 @@ void inode_unlock(inode_t* ip)
         panic("inode_unlock: null ip");
     if (!sleeplock_holding(&ip->slk))
         panic("inode_unlock: inode not locked");
-
     releasesleep(&ip->slk);
 }
 
@@ -369,7 +375,6 @@ void inode_unlock_free(inode_t* ip)
     if (!sleeplock_holding(&ip->slk)) {
         panic("inode_unlock_free: inode not locked");
     }
-
     // 1. 先释放这个 inode 的睡眠锁
     releasesleep(&ip->slk);
 

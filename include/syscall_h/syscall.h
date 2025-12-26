@@ -4,6 +4,8 @@
 #include "common.h"
 
 // 系统调用主处理函数
+#define DIR_PATH_LEN 128
+#define ELF_MAXARGS 32
 
 void syscall(void);
 

@@ -12,6 +12,9 @@
 #include "dev/plic.h"
 #include "fs/fs.h"
 #include "dev/vio.h"
+#include "fs/file.h"
+#include "fs/inode.h"
+#include "fs/buf.h"
 
 volatile static int started = 0;
 
@@ -20,6 +23,7 @@ int main(void)
     int id = mycpuid();   // 或者用 cpuid()/mycpuid()
 
     if (id == 0) {
+           
         // 基础初始化
         pmem_init();
         kvm_init();
@@ -28,6 +32,10 @@ int main(void)
         print_init();
         uart_init();
         proc_init();
+         buf_init();
+         inode_init();
+        file_init();
+        console_init();
         // 安装 S-mode trap 入口（全局一次）
 
         // 本核的中断/PLIC/定时器（每核）

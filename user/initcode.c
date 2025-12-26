@@ -1,46 +1,20 @@
-
 #include "sys.h"
 
-// 与内核保持一致
-#define VA_MAX       (1ul << 38)
-#define PGSIZE       4096
-#define MMAP_END     (VA_MAX - 34 * PGSIZE)
-#define MMAP_BEGIN   (MMAP_END - 8096 * PGSIZE) 
-
-char  *str2;
-
 int main()
-{   
-    
-    syscall(SYS_print, "\nuser begin\n");
-
-    
-    
-    // 测试HEAP区域
-    long long top = syscall(SYS_brk, 0);
-    str2 = (char*)top;
-    syscall(SYS_brk, top + PGSIZE);
-
-    
+{
+    char path[] = "./test";
+    char* argv[] = {"hello", "world", 0};
 
     int pid = syscall(SYS_fork);
-
-    if(pid == 0) { // 子进程
-        for(int i = 0; i < 100000000; i++);
-        syscall(SYS_print, "child: hello\n");
-        
-
-        syscall(SYS_exit, 1);
-        syscall(SYS_print, "child: never back\n");
-    } else {       // 父进程
-        int exit_state;
-        syscall(SYS_wait, &exit_state);
-        if(exit_state == 1)
-            syscall(SYS_print, "parent: hello\n");
-        else
-            syscall(SYS_print, "parent: error\n");
+    if(pid < 0) { // 失败
+        syscall(SYS_write, 0, 20, "initcode: fork fail\n");
+    } else if(pid == 0) { // 子进程
+        syscall(SYS_write, 0, 22, "\n-----test start-----\n");
+        syscall(SYS_exec, path, argv);
+    } else { // 父进程
+        syscall(SYS_wait, 0);
+        syscall(SYS_write, 0, 21, "\n-----test over-----\n");
+        while(1);
     }
-
-    while(1);
     return 0;
 }

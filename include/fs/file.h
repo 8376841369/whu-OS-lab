@@ -58,5 +58,6 @@ uint32  file_write(file_t* file, uint32 len, uint64 src, bool user);
 uint32  file_lseek(file_t* file, uint32 offset, int flags);
 file_t* file_dup(file_t* file);
 int     file_stat(file_t* file, uint64 addr);
+void    console_init();
 
 #endif

@@ -90,7 +90,6 @@ buf_t* buf_read(uint32 block_num)
         if (b->block_num == block_num) {
             b->buf_ref++;
             spinlock_release(&lk_buf_cache);
-            printf("buf_get: cache hit for block %d\n", block_num);
             acquiresleep(&b->slk);
             return b;
         }
@@ -119,7 +118,6 @@ buf_t* buf_read(uint32 block_num)
             // 绑定到新的 block_num，并从磁盘读入新块内容
             b->block_num = block_num;
             virtio_disk_rw(b, false);      // 读入新块
-            printf("buf_get: cache miss for block %d (reused block %d)\n", block_num, old_block);
             return b;
         }
     }

@@ -14,4 +14,6 @@ unsigned long kstrlen(const char *s);
 int strncmp(const char *s1, const char *s2, uint64 n);
 
 int memcmp(const void *s1, const void *s2, uint64 n);
+
+char* safestrcpy(char *s, const char *t, int n);
 #endif

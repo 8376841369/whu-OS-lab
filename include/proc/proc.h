@@ -4,6 +4,7 @@
 #include "common.h"
 #include "lib/lock.h"
 #include "fs/inode.h"
+#include "fs/file.h"
 // 页表类型定义
 typedef uint64* pgtbl_t;
 
@@ -92,6 +93,8 @@ enum proc_state {
 };
 
 
+#define FILE_PER_PROC 16  // 每个进程允许打开的最大文件数
+
 // 进程定义
 typedef struct proc {
     
@@ -115,6 +118,7 @@ typedef struct proc {
     context_t ctx;           // 内核态进程上下文
 
     inode_t* cwd;              // 当前工作目录
+    file_t *filelist[FILE_PER_PROC]; // 进程打开的文件列表
 } proc_t;
 
 
