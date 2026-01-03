@@ -99,7 +99,7 @@ void  pmem_free(uint64 page, bool in_kernel)
     //确保归还到正确的池，且页对齐/在区间内
     if (!page_in_region(r, page)) {
         // 也可 panic("pmem_free: bad page/region");
-        printf("Warning: pmem_free: bad page/region %p\n", (void*)page);
+        //printf("Warning: pmem_free: bad page/region %p\n", (void*)page);
         return;
     }
 

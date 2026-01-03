@@ -15,6 +15,27 @@
 #include "fs/file.h"
 #include "fs/inode.h"
 #include "fs/buf.h"
+static void xc6_banner(int id)
+{
+    printf(" __   __           __   \n");
+printf(" \\ \\ / /          / /   \n");
+printf("  \\ V /    ___   / /_   \n");
+printf("   > <    / __| | '_ \\  \n");
+printf("  / . \\  | (__  | (_) | \n");
+printf(" /_/ \\_\\  \\___|  \\___/  \n");
+printf("                        \n");
+printf("                        \n");
+
+                        
+printf("            X c 6   OS (RISC-V)\n");
+
+    printf("------------------------------------------------------------\n");
+    printf("  Boot CPU  : %d\n", id);
+    printf("  Build     : %s %s\n", __DATE__, __TIME__);
+    printf("  Motto     : \"Make it simple, make it run.\"\n");
+    printf("============================================================\n");
+    printf("\n");
+}
 
 volatile static int started = 0;
 
@@ -42,7 +63,7 @@ int main(void)
         trap_kernel_inithart();   // 内部应打开 SIE_STIE + SSTATUS_SIE
 
        
-        printf("cpu %d is booting! Sstc timer test starts.\n", id);
+         xc6_banner(id);
 
         __sync_synchronize();
         started = 1;              // 放行其他核

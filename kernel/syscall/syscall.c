@@ -39,7 +39,7 @@ void syscall()
     proc_t* p = myproc();
 
     num = p->tf->a7;
-    if(num>0&&num<=(sizeof(syscalls)/sizeof(syscalls[0]))&&syscalls[num])
+    if(num>=0&&num<=(sizeof(syscalls)/sizeof(syscalls[0]))&&syscalls[num])
     {
         uint64 ret = syscalls[num]();
         p->tf->a0 = ret;

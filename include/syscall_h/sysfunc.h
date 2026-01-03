@@ -4,7 +4,7 @@
 #include "common.h"
 
 // 文件系统无关的系统调用
-
+int exec(char* path, uint64 argv);
 uint64 sys_exec();
 uint64 sys_brk();
 uint64 sys_mmap();

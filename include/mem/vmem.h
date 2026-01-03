@@ -81,6 +81,7 @@ void   kvm_inithart();
 
 /*------------------------ in uvm.c -----------------------*/
 
+
 void   uvm_show_mmaplist(mmap_region_t* mmap);
 
 void   uvm_destroy_pgtbl(pgtbl_t pgtbl);
@@ -98,4 +99,5 @@ int   uvm_copyin_str(pgtbl_t pgtbl, char* dst, uint64 src, uint64 maxlen);
 
 int uvmcopy(pgtbl_t old, pgtbl_t new, uint64 heap_top,uint32 ustack_pages);
 
+pgtbl_t uvmcreate();
 #endif

@@ -70,10 +70,56 @@ static void destroy_pgtbl(pgtbl_t pgtbl, uint32 level)
 
 }
 
+#define PT_ENTRIES 512
+
+static inline bool pte_is_leaf(pte_t pte)
+{
+    return (pte & PTE_V) && (pte & (PTE_R | PTE_W | PTE_X));
+}
+
+// 递归释放：释放页表 pt 指向的整棵用户页表树
+// 约定：pt 是“页表页的 kva”
+static void uvm_freewalk(pgtbl_t pt)
+{
+    for (int i = 0; i < PT_ENTRIES; i++) {
+        pte_t pte = pt[i];
+        if ((pte & PTE_V) == 0)
+            continue;
+
+        uint64 pa = PTE2PA(pte);
+        if (pa == 0) {
+            pt[i] = 0;
+            continue;
+        }
+
+        if (pte_is_leaf(pte)) {
+            // 叶子：释放用户页（代码/数据/栈/堆等）
+            // 关键：pmem_free 要 KVA，不要 PA
+            uint64 kva = pa2kva(pa);          // <<< 如果你函数名不同，在这里替换
+            pmem_free(kva, false);            // user_region
+            pt[i] = 0;
+        } else {
+            // 非叶子：下一级页表
+            pgtbl_t child = (pgtbl_t)pa2kva(pa); // <<< 同上
+            uvm_freewalk(child);
+            pt[i] = 0;
+        }
+    }
+
+    // 释放当前页表页本身（通常来自 kernel_region）
+    pmem_free((uint64)pt, true);
+}
+
 // 页表销毁：trapframe 和 trampoline 单独处理
 void uvm_destroy_pgtbl(pgtbl_t pgtbl)
 {
+    if (pgtbl == NULL)
+        return;
 
+    // 调用者应保证：
+    // - TRAMPOLINE / TRAPFRAME 的 PTE 已经清零（unmap）
+    // - 对应物理页是否释放，按你策略在别处处理
+    uvm_freewalk(pgtbl);
 }
 
 // 拷贝页表 (拷贝并不包括trapframe 和 trampoline)
@@ -343,4 +389,17 @@ int uvmcopy(pgtbl_t old, pgtbl_t new, uint64 heap_top,uint32 ustack_pages)
 err:
     uvm_munmap(0, i / PAGESIZE);
     return -1;
+}
+
+// create an empty user page table.
+// returns 0 if out of memory.
+pgtbl_t
+uvmcreate()
+{
+  pgtbl_t pagetable;
+  pagetable = (pgtbl_t) pmem_alloc(true);
+  if(pagetable == 0)
+    return 0;
+  memset(pagetable, 0, PGSIZE);
+  return pagetable;
 }

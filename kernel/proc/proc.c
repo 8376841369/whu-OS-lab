@@ -552,3 +552,31 @@ either_copyout(int user_dst, uint64 dst, void *src, uint64 len)
         memmove((void *)dst, src, len);
     }
 }
+
+
+pgtbl_t proc_pagetable(struct proc *p)
+{
+    pgtbl_t pagetable;
+
+  // An empty page table.
+  pagetable = uvmcreate();
+  if(pagetable == 0)
+    return 0;
+
+  // map the trampoline code (for system call return)
+  // at the highest user virtual address.
+  // only the supervisor uses it, on the way
+  // to/from user space, so not PTE_U.
+    // trampoline 映射
+    uint64 trampoline_pa = kva2pa((void*)trampoline);
+    
+    vm_mappages(pagetable, (uint64)TRAMPOLINE, trampoline_pa, PAGESIZE, PTE_A|PTE_V|PTE_R | PTE_X);
+   
+
+  // map the trapframe page just below the trampoline page, for
+  // trampoline.S.
+    vm_mappages(pagetable, TRAPFRAME, kva2pa((void*)p->tf), PAGESIZE,
+              PTE_A|PTE_V|PTE_R | PTE_W);
+
+  return pagetable;
+}

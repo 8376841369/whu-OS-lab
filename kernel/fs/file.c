@@ -505,7 +505,6 @@ uint32 console_write(uint32 len, uint64 src, bool user_src)
         } else {
             ch = *(uint8*)(src + i);
         }
-      
         uart_putc_sync(ch);
     }
     return i;

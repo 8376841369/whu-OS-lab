@@ -17,7 +17,7 @@ $(USER):
 
 $(MKFS):
 	$(MAKE) build --directory=$@
-	$(MKFS)/mkfs $(FS_IMG)
+	$(MKFS)/mkfs $(FS_IMG) ./user/_test
 
 # QEMU相关配置
 QEMU     =  qemu-system-riscv64

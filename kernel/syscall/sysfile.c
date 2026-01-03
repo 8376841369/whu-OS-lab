@@ -114,7 +114,7 @@ uint64 sys_read()
 // 成功返回字节数 失败返回0
 uint64 sys_write()
 {
-    printf("sys_write called\n");
+    
     uint32 len;
     uint64 addr;
     file_t* file;
